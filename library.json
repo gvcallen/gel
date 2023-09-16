@@ -1,0 +1,25 @@
+{
+  "name": "Gel",
+  "version": "0.0.1",
+  "description": "Gary's Embedded Library",
+  "keywords": "embedded",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/gvcallen/gel"
+  },
+  "authors":
+  [
+    {
+      "name": "Gary Allen",
+      "email": "gvcalle@gmail.com",
+      "url": "https://www.github.com/gvcallen"
+    }
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "etl/etlcpp": "~20.35"
+  },
+  "frameworks": "*",
+  "platforms": "*"
+}
