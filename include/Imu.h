@@ -1,14 +1,16 @@
 #include <MPU9250_WE.h>
 #include <SPI.h>
 
-namespace pqgs
+#include "Core.h"
+
+namespace gel
 {
 
 struct ImuPins
 {
     SPIClass* spi;
     uint8_t nss;
-    uint8_t interrupt;
+    optional<uint8_t> interrupt;
 };
 
 class Imu
@@ -16,8 +18,9 @@ class Imu
 public:
     Imu() {};
 
-    int begin(ImuPins pins);
-    xyzFloat getAcceleration();
+    expected<void, Error> begin(ImuPins pins);
+    Vec3f getLinearAcceleration();
+    Vec3f getRotationAcceleration();
 
 private:
     bool initialized = false;
@@ -26,9 +29,4 @@ private:
     MPU9250_WE mpu;
 };
 
-  xyzFloat gValue = myMPU6500.getGValues();
-  xyzFloat gyr = myMPU6500.getGyrValues();
-  float temp = myMPU6500.getTemperature();
-  float resultantG = myMPU6500.getResultantG(gValue);
-
-} // namespace pqgs
+} // namespace gel

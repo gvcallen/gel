@@ -1,80 +1,117 @@
-#include "Gps.h"
+#include "Core.h"
 #include "Stream.h"
+#include "Gps.h"
+#include "MagDec.h"
 
-namespace pqsu
+namespace gel
 {
 
 int Gps::begin(Stream *gpsSerial)
 {
-    gpsSerial = gpsSerial;
+    this->gpsSerial = gpsSerial;
 }
 
 int Gps::update()
 {
     if (gpsSerial->available() > 0)
     {
-        if (tinyGps.encode(gpsSerial->read()))
+        char c = gpsSerial->read();
+        bool encodeResult = tinyGps.encode(c);
+        if (!encodeResult)
         {
-
+            return Error::BadCommunication;
         }
     }
+
+    return Error::None;
 }
 
+expected<double, Error> Gps::getLatitude()
+{
+    if (!tinyGps.location.isValid())
+        return Error::InvalidState;
 
-//   if (gpsSerial.available() > 0) {
-//     if (gps.encode(gpsSerial.read())) {
-//       if (gps.location.isValid()) {
-//         // Serial.print(F("- latitude: "));
-//         Serial.println(gps.location.lat());
+    return tinyGps.location.lat();
+}
 
-//         // Serial.print(F("- longitude: "));
-//         Serial.println(gps.location.lng());
+expected<double, Error> Gps::getLongitude()
+{
+    if (!tinyGps.location.isValid())
+        return Error::InvalidState;
 
-//         Serial.print(F("- altitude: "));
-//         if (gps.altitude.isValid())
-//           Serial.println(gps.altitude.meters());
-//         else
-//           int x = 5;
-//           // Serial.println(F("INVALID"));
-//       } else {
-//           int x = 5;
-//         // Serial.println(F("- location: INVALID"));
-//       }
+    return tinyGps.location.lng();
+}
 
-//       // Serial.print(F("- speed: "));
-//       if (gps.speed.isValid()) {
-//         Serial.print(gps.speed.kmph());
-//         // Serial.println(F(" km/h"));
-//       } else {
-//         int x = 5;
-//         // Serial.println(F("INVALID"));
-//       }
+expected<double, Error> Gps::getAltitude()
+{
+    if (!tinyGps.altitude.isValid())
+        return Error::InvalidState;
 
-//       Serial.print(F("- GPS date&time: "));
-//       if (gps.date.isValid() && gps.time.isValid()) {
-//         Serial.print(gps.date.year());
-//         Serial.print(F("-"));
-//         Serial.print(gps.date.month());
-//         Serial.print(F("-"));
-//         Serial.print(gps.date.day());
-//         Serial.print(F(" "));
-//         Serial.print(gps.time.hour());
-//         Serial.print(F(":"));
-//         Serial.print(gps.time.minute());
-//         Serial.print(F(":"));
-//         Serial.println(gps.time.second());
-//       } else {
-//         Serial.println(F("INVALID"));
-//       }
+    return tinyGps.altitude.meters();
+}
 
-//       Serial.println();
-//     }
-//   }
+expected<float, Error> Gps::getMagneticDeclination()
+{
+    auto lng = getLongitude();
+    if (!lng)
+        return lng.error();
 
-//   if (millis() > 5000 && gps.charsProcessed() < 10)
-//     Serial.println(F("No GPS data received: check wiring"));
+    auto lat = getLatitude();
+    if (!lat)
+        return lat.error();
 
+    auto year = getYear();
+    
+    auto decl = ::gel::getMagneticDeclination(lat.value(), lng.value(), year.value_or(2014));
+    return decl;
+}
 
+expected<uint8_t, Error> Gps::getSecond()
+{
+    if (!tinyGps.time.isValid())
+        return Error::InvalidState;
 
+    return tinyGps.time.second();
+}
 
-} // namespace pqsu
+expected<uint8_t, Error> Gps::getMinute()
+{
+    if (!tinyGps.time.isUpdated())
+        return Error::InvalidState;
+
+    return tinyGps.time.minute();
+}
+
+expected<uint8_t, Error> Gps::getHour()
+{
+    if (!tinyGps.time.isUpdated())
+        return Error::InvalidState;
+
+    return tinyGps.time.hour();
+}
+
+expected<uint8_t, Error> Gps::getDay()
+{
+    if (!tinyGps.date.isValid())
+        return Error::InvalidState;
+
+    return tinyGps.date.day();
+}
+
+expected<uint8_t, Error> Gps::getMonth()
+{
+    if (!tinyGps.date.isValid())
+        return Error::InvalidState;
+
+    return tinyGps.date.month();
+}
+
+expected<uint16_t, Error> Gps::getYear()
+{
+    if (!tinyGps.date.isValid())
+        return Error::InvalidState;
+
+    return tinyGps.date.year();
+}
+
+} // namespace gel

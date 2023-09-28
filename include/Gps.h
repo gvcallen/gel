@@ -1,4 +1,4 @@
-namespace pqgs
+namespace gel
 {
 
 #include <Arduino.h>
@@ -11,16 +11,22 @@ class Gps
     public:
         Gps();
 
-        expected_void begin(Stream *gpsSerial);
+        int begin(Stream *gpsSerial);
         int update();
-        double getLatitude();
-        double getLongitude();
-        double getAltitude();
-        double getMagneticInclination();
+        expected<double, Error> getLatitude();
+        expected<double, Error> getLongitude();
+        expected<double, Error> getAltitude();
+        expected<float, Error> getMagneticDeclination();
+        expected<uint8_t, Error> getSecond();
+        expected<uint8_t, Error> getMinute();
+        expected<uint8_t, Error> getHour();
+        expected<uint8_t, Error> getDay();
+        expected<uint8_t, Error> getMonth();
+        expected<uint16_t, Error> getYear();
 
     private:
         TinyGPSPlus tinyGps;
         Stream *gpsSerial;
 };
 
-} // namespace pqgs
+} // namespace gel

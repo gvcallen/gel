@@ -1,32 +1,8 @@
-#include "core.h"
-#include "magdec.h"
+#include "Core.h"
+#include "MagDec.h"
 
-namespace pqgs
+namespace gel
 {
-
-float getMagDev(float lat, float lon, int year)
-{
-	int i, n;
-	int lati, loni;
-	n = numMagDecCorrections;
-	
-	lati = (int)lat;
-	loni = (int)lon;
-	
-	for (i = 0; i < numMagDecCorrections; i++)
-	{ 
-		if ((magDecCorrections[i].lat == lati) &&
-		    (magDecCorrections[i].lon == loni) && 
-		    (magDecCorrections[i].year == year))
-		{
-			return magDecCorrections[i].magdec;
-		}
-	}
-	
-	return ERROR_NOT_FOUND;
-}
-
-extern size_t numMagDecCorrections = sizeof(magDecCorrections) / sizeof(MagneticDeclinationCorrection);
 
 static const MagneticDeclinationCorrection magDecCorrections[] =
 {
@@ -2384,4 +2360,31 @@ static const MagneticDeclinationCorrection magDecCorrections[] =
 	{2024, -35, 35, -35.56},
 };
 
-} // namespace pqgs
+static const size_t numMagDecCorrections = sizeof(magDecCorrections) / sizeof(MagneticDeclinationCorrection);
+
+expected<float, Error> getMagDev(float lat, float lon, uint16_t year)
+{
+	int i, n;
+	int lati, loni;
+	n = numMagDecCorrections;
+	
+	lati = (int)lat;
+	loni = (int)lon;
+	
+	for (i = 0; i < numMagDecCorrections; i++)
+	{ 
+		if ((magDecCorrections[i].lat == lati) &&
+		    (magDecCorrections[i].lon == loni) && 
+		    (magDecCorrections[i].year == year))
+		{
+			return magDecCorrections[i].magdec;
+		}
+	}
+
+	return expected<float, Error>{unexpected<Error>{Error::NotFound}};
+	
+}
+
+
+
+} // namespace gel

@@ -17,9 +17,22 @@
     }
   ],
   "license": "MIT",
-  "dependencies": {
-    "etl/etlcpp": "~20.35"
-  },
   "frameworks": "*",
-  "platforms": "*"
+  "platforms": "*",
+  "build":
+  {
+    "flags":
+      [
+        "-ISource/include",
+        "-ISource/src"
+      ]
+  },
+  "dependencies":
+  {
+      "mikalhart/TinyGPSPlus": "^1.0.3",
+      "wollewald/MPU9250_WE": "^1.2.7",
+      "sandeepmistry/LoRa": "^0.8.0",
+      "SPI": "*",
+      "Wire": "*"
+  }
 }

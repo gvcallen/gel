@@ -5,14 +5,14 @@
 
 const uint32_t TIMEOUT_IN_MS = 2000;
 
-namespace pqgs
+namespace gel
 {
 
 int Transceiver::begin(TransceiverPins pins, uint32_t frequency, uint32_t syncWord)
 {
     lora = &LoRa;
     
-    lora->setPins(pins.nss, pins.reset, pins.dio0);
+    // lora->setPins(pins.nss, pins.reset, pins.dio0);
     
     // DEBUG - Todo - Add ability to use custom SPI
   
@@ -24,12 +24,12 @@ int Transceiver::begin(TransceiverPins pins, uint32_t frequency, uint32_t syncWo
         timeWaited += delayTime;
 
         if (delayTime >= TIMEOUT_IN_MS)
-            return ERROR_TIMEOUT;
+            return Error::Timeout;
     }
 
     LoRa.setSyncWord(syncWord);
 
-    return ERROR_NONE;
+    return Error::None;
 }
 
 int Transceiver::send(const Printable& printable)
@@ -38,12 +38,12 @@ int Transceiver::send(const Printable& printable)
     LoRa.print(printable);
     LoRa.endPacket();
 
-    return ERROR_NONE;
+    return Error::None;
 }
 
 int Transceiver::receive()
 {
-    return ERROR_NONE;
+    return Error::None;
 }
 
-} // namespace pqgs;
+} // namespace gel;

@@ -1,6 +1,6 @@
 #include "StepperMotor.h"
 
-namespace pqgs
+namespace gel
 {
 
 class Mount
@@ -21,4 +21,4 @@ private:
     StepperMotor elevationMotor, azimuthalMotor;
 };
 
-} // namespace pqgs
+} // namespace gel

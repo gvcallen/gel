@@ -4,7 +4,7 @@
 
 class LoRaClass;
 
-namespace pqgs
+namespace gel
 {
 
 struct TransceiverPins
@@ -14,11 +14,11 @@ struct TransceiverPins
     uint8_t sck;
     uint8_t nss;
     uint8_t reset;
-    etl::optional<uint8_t> dio0;
-    etl::optional<uint8_t> dio1;
-    etl::optional<uint8_t> dio2;
-    etl::optional<uint8_t> dio3;
-    etl::optional<uint8_t> dio4;
+    optional<uint8_t> dio0;
+    optional<uint8_t> dio1;
+    optional<uint8_t> dio2;
+    optional<uint8_t> dio3;
+    optional<uint8_t> dio4;
 };
 
 class Transceiver
@@ -39,4 +39,4 @@ private:
     LoRaClass* lora;
 };
 
-} // namespace pqgs
+} // namespace gel

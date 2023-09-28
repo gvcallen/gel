@@ -1,5 +1,8 @@
 #include "Core.h"
 
+namespace gel
+{
+
 struct MagneticDeclinationCorrection
 {
     int year;
@@ -8,8 +11,7 @@ struct MagneticDeclinationCorrection
     float magdec;
 };
 
-extern const MagneticDeclinationCorrection magDecCorrections[];
-extern size_t numMagDecCorrections;
-
 // Year may be 2023 or 2024. Lat-long must be in South Africa.
-float getMagDev(float lat, float lon, int year);
+expected<float, Error> getMagneticDeclination(float lat, float lon, uint16_t year);
+
+} // namespace gel
