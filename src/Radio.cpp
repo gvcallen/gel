@@ -1,7 +1,7 @@
 #include <RadioLib.h>
 
-#include "Radio.h"
-#include "Core.h"
+#include "gel/Radio.h"
+#include "gel/Core.h"
 
 
 namespace gel

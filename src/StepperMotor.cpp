@@ -1,5 +1,5 @@
-#include "Core.h"
-#include "StepperMotor.h"
+#include "gel/Core.h"
+#include "gel/StepperMotor.h"
 
 namespace gel
 {

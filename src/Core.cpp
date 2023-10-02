@@ -1,4 +1,4 @@
-#include "Core.h"
+#include "gel/Core.h"
 
 namespace gel
 {

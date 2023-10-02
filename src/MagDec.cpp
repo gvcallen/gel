@@ -1,5 +1,5 @@
-#include "Core.h"
-#include "MagDec.h"
+#include "gel/Core.h"
+#include "gel/MagDec.h"
 
 namespace gel
 {

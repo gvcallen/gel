@@ -1,7 +1,7 @@
 #include <MPU9250_WE.h>
 
-#include "Core.h"
-#include "Imu.h"
+#include "gel/Core.h"
+#include "gel/Imu.h"
 
 namespace gel
 {

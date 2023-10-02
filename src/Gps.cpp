@@ -1,7 +1,8 @@
-#include "Core.h"
-#include "Stream.h"
-#include "Gps.h"
-#include "MagDec.h"
+#include <Stream.h>
+
+#include "gel/Core.h"
+#include "gel/Gps.h"
+#include "gel/MagDec.h"
 
 namespace gel
 {
