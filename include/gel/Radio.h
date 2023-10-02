@@ -20,19 +20,30 @@ struct LoRaConfig
 {
     uint8_t spreadingFactor = 9;
     uint8_t codeRate = 7;
-    float bandwidth = 125.0e6;
+    float bandwidth = 125.0e3;
 };
 
-union ModulationConfig
+struct FSKConfig
 {
-    LoRaConfig lora{};
+    float bitRate = 4800.0;                                 // 1200 to 300 000 bps
+    float frequencyDeviation = 5.0e3;                       // 600 to 200 000 Hz
+    float bandwidth = 125.0e3;                              // 2.6, 3.1, 3.9, 5.2, 6.3, 7.8, 10.4, 12.5, 15.6, 20.8, 25, 31.3, 41.7, 50, 62.5, 83.3, 100, 125, 166.7, 200 and 250 kHz
+    float dataShaping = 0.5;                                // 0.0, 0.3, 0.5 or 1.0
+};
+
+
+union ModulationConfig
+{   
+    LoRaConfig lora;
+    FSKConfig fsk;
 };
 
 struct RadioConfig
 {
     float frequency = 434.0e6;
     uint32_t syncWord = 0x12;
-    uint8_t outputPower = 10;
+    uint8_t outputPower = 10;                               // 2 to 17 dBm
+    uint8_t preambleLength = 10;                            // 6 to 65535
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{};
     bool master = false;
@@ -75,12 +86,14 @@ public:
     Error startReceive();
 
     Error sleep();
+    Error standby();
 
     expected<String, Error> readData();
     
     size_t available();
 
     float getRssi() { return radio.getRSSI(); }
+    float getDataRate() { return radio.getDataRate(); }
     State getState() { return currentState; }
     State getPrevState() { return prevState; }
 
@@ -99,7 +112,7 @@ private:
 
     static Radio* get(uint8_t idx);
 
-    void setState(State newState) { prevState = currentState; currentState = newState;}
+    void setState(State newState);
 
 private:
     bool initialized = false;

@@ -25,21 +25,40 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
     if (pins.SPI.has_value())
         return Error::NotImplemented;
 
-    int err;
+    int err = Error::None;
     switch (config.modType)
     {
         case ModulationType::LoRa:
         {
             LoRaConfig& loraConfig = config.modConfig.lora;
-            err = radio.begin(config.frequency / 1.0e6,
-                                loraConfig.bandwidth / 1.0e6,
-                                loraConfig.spreadingFactor,
-                                loraConfig.codeRate);
+
+            err = radio.begin(config.frequency * 1.0e-6,
+                              loraConfig.bandwidth * 1.0e-3,
+                              loraConfig.spreadingFactor,
+                              loraConfig.codeRate,
+                              config.syncWord,
+                              config.outputPower,
+                              config.preambleLength);
             break;
         }
             
         case ModulationType::FSK:
-            return Error::NotImplemented;
+        {
+            FSKConfig& fskConfig = config.modConfig.fsk;
+            err = radio.beginFSK(config.frequency * 1.0e-6,
+                                 fskConfig.bitRate * 1e-3,
+                                 fskConfig.frequencyDeviation * 1.0e-3,
+                                 fskConfig.bandwidth * 1e-3,
+                                 config.outputPower,
+                                 config.preambleLength);
+            
+            if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
+            else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
+            else if (fskConfig.dataShaping == 0.5) radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+            else if (fskConfig.dataShaping == 1.0) radio.setDataShaping(RADIOLIB_SHAPING_1_0);
+            
+            break;
+        }
 
         default:
             return Error::BadParameter;
@@ -61,6 +80,7 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
         case 4: radio.setDio0Action(callback4, RISING); break;
     }
     
+    standby();
     return Error::None;
 }
 
@@ -165,6 +185,24 @@ Error Radio::sleep()
 
     setState(Idle);
     return Error::None;        
+}
+
+Error Radio::standby()
+{
+    int err = radio.standby();
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Idle);
+    return Error::None;        
+}
+
+void Radio::setState(State newState)
+{
+    operationDone = false;
+    prevState = currentState;
+    currentState = newState;
 }
 
 void Radio::callback()
