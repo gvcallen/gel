@@ -2,6 +2,7 @@
 
 #include <etl/optional.h>
 #include <etl/expected.h>
+#include <etl/span.h>
 
 namespace gel
 {
@@ -9,7 +10,7 @@ namespace gel
 #define NUM_ELEMS(a) (sizeof(a)/sizeof 0[a])
 #define DEBUG_VARIABLE(x) Serial.print(#x " = "); Serial.println(x);
 
-enum Error
+enum [[nodiscard]] Error
 {
     None = 0,
     Timeout,
@@ -18,6 +19,8 @@ enum Error
     BadParameter,
     BadCommunication,
     InvalidState,
+    OutOfRange,
+    Internal,
 };
 
 struct Vec3f
@@ -47,5 +50,7 @@ using unexpected = etl::unexpected<TError>;
 
 template<typename T>
 using optional = etl::optional<T>;
+
+using etl::span;
 
 } // namespace gel
