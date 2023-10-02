@@ -6,13 +6,16 @@
 namespace gel
 {
 
-uint8_t Radio::numModules = 0;
-Radio* Radio::radios[RADIO_MAX_MODULES] = {};
+uint8_t Radio::numInstances = 0;
+Radio* Radio::instances[RADIO_MAX_INSTANCES] = {};
 
 Error Radio::begin(RadioPins pins, RadioConfig config)
 {
-    if (numModules == RADIO_MAX_MODULES)
+    if (numInstances == RADIO_MAX_INSTANCES)
         return Error::CapacityFull;
+
+    this->pins = pins;
+    this->config = config;
     
     if (pins.dio1.has_value())
         radio = new Module(pins.nss, pins.dio0, pins.reset, pins.dio1.value());
@@ -22,13 +25,13 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
     if (pins.SPI.has_value())
         return Error::NotImplemented;
 
-    int state;
+    int err;
     switch (config.modType)
     {
         case ModulationType::LoRa:
         {
             LoRaConfig& loraConfig = config.modConfig.lora;
-            state = radio.begin(config.frequency / 1.0e6,
+            err = radio.begin(config.frequency / 1.0e6,
                                 loraConfig.bandwidth / 1.0e6,
                                 loraConfig.spreadingFactor,
                                 loraConfig.codeRate);
@@ -42,24 +45,36 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
             return Error::BadParameter;
     }
 
-    if (state != RADIOLIB_ERR_NONE)
+    if (err != RADIOLIB_ERR_NONE)
         return Error::Internal;
 
-    moduleIdx = numModules;
-    numModules++;
+    instanceIdx = numInstances;
+    instances[instanceIdx] = this;
+    numInstances++;
+
+    switch (instanceIdx)
+    {
+        case 0: radio.setDio0Action(callback0, RISING); break;
+        case 1: radio.setDio0Action(callback1, RISING); break;
+        case 2: radio.setDio0Action(callback2, RISING); break;
+        case 3: radio.setDio0Action(callback3, RISING); break;
+        case 4: radio.setDio0Action(callback4, RISING); break;
+    }
     
     return Error::None;
 }
 
-Error Radio::send(span<uint8_t> msg)
+Error Radio::transmit(span<uint8_t> msg)
 {
-    int state = radio.transmit(msg.data(), msg.size());
+    setState(Transmitting);
+    int err = radio.transmit(msg.data(), msg.size());
+    setState(Idle);
   
-    if (state != RADIOLIB_ERR_NONE)
+    if (err != RADIOLIB_ERR_NONE)
     {
-        if (state == RADIOLIB_ERR_PACKET_TOO_LONG)
+        if (err == RADIOLIB_ERR_PACKET_TOO_LONG)
             return Error::OutOfRange;
-        else if (state == RADIOLIB_ERR_TX_TIMEOUT)
+        else if (err == RADIOLIB_ERR_TX_TIMEOUT)
             return Error::Timeout;
         else
             return Error::Internal;
@@ -68,15 +83,17 @@ Error Radio::send(span<uint8_t> msg)
     return Error::None;
 }
 
-Error Radio::send(const char* msg)
+Error Radio::transmit(const char* msg)
 {
-    int state = radio.transmit(msg);
+    setState(Transmitting);
+    int err = radio.transmit(msg);
+    setState(Idle);
   
-    if (state != RADIOLIB_ERR_NONE)
+    if (err != RADIOLIB_ERR_NONE)
     {
-        if (state == RADIOLIB_ERR_PACKET_TOO_LONG)
+        if (err == RADIOLIB_ERR_PACKET_TOO_LONG)
             return Error::OutOfRange;
-        else if (state == RADIOLIB_ERR_TX_TIMEOUT)
+        else if (err == RADIOLIB_ERR_TX_TIMEOUT)
             return Error::Timeout;
         else
             return Error::Internal;
@@ -85,10 +102,9 @@ Error Radio::send(const char* msg)
     return Error::None;
 }
 
-Error Radio::send(String msg)
+Error Radio::transmit(String msg)
 {
-    this->send(msg.c_str());
-    return Error::None;
+    return this->transmit(msg.c_str());
 }
 
 Error Radio::receive()
@@ -96,32 +112,83 @@ Error Radio::receive()
     return Error::None;
 }
 
-Error Radio::startListening()
+Error Radio::startReceive()
 {
-    radio.setPacketReceivedAction(receivedCallback0);
-    int state = radio.startReceive();
+    int err = radio.startReceive();
 
-    if (state != RADIOLIB_ERR_NONE)
+    if (err != RADIOLIB_ERR_NONE)
         return Error::Internal;
 
+    setState(Receiving);
     return Error::None;
 }
 
+Error Radio::startTransmit(span<uint8_t> msg)
+{
+    int err = radio.startTransmit(msg.data(), msg.size());
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Transmitting);
+    return Error::None;
+}
+
+Error Radio::startTransmit(const char* msg)
+{
+    int err = radio.startTransmit(msg);
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Transmitting);
+    return Error::None;
+}
+
+Error Radio::startTransmit(String msg)
+{
+    int err = radio.startTransmit(msg);
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Transmitting);
+    return Error::None;
+}
+
+Error Radio::sleep()
+{
+    int err = radio.sleep();
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Idle);
+    return Error::None;        
+}
+
+void Radio::callback()
+{
+    operationDone = true;
+    if (currentState == Transmitting)
+        setState(Idle);
+};
+
 size_t Radio::available()
 {
-    if (!receivedFlag == true)
+    if (!(currentState == Receiving) || !(operationDone == true))
         return 0;
 
-    receivedFlag = false;
     return radio.getPacketLength();
 }
 
 expected<String, Error> Radio::readData()
 {
     String str;
-    int state = radio.readData(str);
+    int err = radio.readData(str);
+    operationDone = false;
     
-    if (state != RADIOLIB_ERR_NONE)
+    if (err != RADIOLIB_ERR_NONE)
         return expected<String, Error>{unexpected<Error>{Error::Internal}};
 
     return str;
@@ -129,7 +196,7 @@ expected<String, Error> Radio::readData()
 
 Radio* Radio::get(uint8_t idx)
 {
-    return Radio::radios[idx];
+    return Radio::instances[idx];
 }
 
 } // namespace gel;

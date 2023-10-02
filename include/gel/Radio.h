@@ -4,7 +4,8 @@
 
 #include "gel/Core.h"
 
-#define RADIO_MAX_MODULES 5
+// NB: Callback functions must be added approriately if this is changed
+#define RADIO_MAX_INSTANCES 5
 
 namespace gel
 {
@@ -34,6 +35,7 @@ struct RadioConfig
     uint8_t outputPower = 10;
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{};
+    bool master = false;
 };
 
 struct RadioPins
@@ -51,46 +53,68 @@ struct RadioPins
 class Radio
 {
 public:
+    enum State
+    {
+        Idle = 0,           // Note that if the device is sleep, it is in this state, however it could also just be neither receiving not transmitting
+        Transmitting,
+        Receiving,
+    };
+
+public:
     Radio() {};
     Error begin(RadioPins pins, RadioConfig config);
     
-    Error send(span<uint8_t> msg);
-    Error send(const char* msg);
-    Error send(String msg);
-    
+    Error transmit(span<uint8_t> msg);
+    Error transmit(const char* msg);
+    Error transmit(String msg);
     Error receive();
+
+    Error startTransmit(span<uint8_t> msg);
+    Error startTransmit(const char* msg);
+    Error startTransmit(String msg);
+    Error startReceive();
+
+    Error sleep();
 
     expected<String, Error> readData();
     
-    Error startListening();
     size_t available();
 
-private:
-    static void receivedCallback0(void) { Radio::get(0)->receivedCallback(); }
-    static void receivedCallback1(void) { Radio::get(1)->receivedCallback(); }
-    static void receivedCallback2(void) { Radio::get(2)->receivedCallback(); }
-    static void receivedCallback3(void) { Radio::get(3)->receivedCallback(); }
-    static void receivedCallback4(void) { Radio::get(4)->receivedCallback(); }
-    void receivedCallback() { receivedFlag = true; };
+    float getRssi() { return radio.getRSSI(); }
+    State getState() { return currentState; }
+    State getPrevState() { return prevState; }
 
 private:
-    static Radio* radios[RADIO_MAX_MODULES];
-    static uint8_t numModules;
+    static void callback0(void) { Radio::get(0)->callback(); }
+    static void callback1(void) { Radio::get(1)->callback(); }
+    static void callback2(void) { Radio::get(2)->callback(); }
+    static void callback3(void) { Radio::get(3)->callback(); }
+    static void callback4(void) { Radio::get(4)->callback(); }
+    void callback();
+
+private:
+    static Radio* instances[RADIO_MAX_INSTANCES];
+    static uint8_t numInstances;
     static const uint32_t TIMEOUT_IN_MS = 2000;
 
     static Radio* get(uint8_t idx);
+
+    void setState(State newState) { prevState = currentState; currentState = newState;}
 
 private:
     bool initialized = false;
 
     RadioPins pins;
+    RadioConfig config;
     uint32_t frequency;
     
-    SX1278 radio{nullptr};
     ModulationType modulation = ModulationType::LoRa;
 
-    bool receivedFlag = false;
-    uint8_t moduleIdx;
+    SX1278 radio {nullptr};
+    uint8_t instanceIdx;
+    bool operationDone = false;
+    volatile State currentState = Idle;
+    State prevState = Idle;
 };
 
 } // namespace gel
