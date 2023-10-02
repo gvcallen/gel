@@ -31,7 +31,8 @@
   {
       "mikalhart/TinyGPSPlus": "^1.0.3",
       "wollewald/MPU9250_WE": "^1.2.7",
-      "sandeepmistry/LoRa": "^0.8.0",
+      "jgromes/RadioLib": "^6.2.0",
+      "etlcpp/Embedded Template Library": "^20.38.2",
       "SPI": "*",
       "Wire": "*"
   }

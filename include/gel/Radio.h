@@ -1,7 +1,8 @@
 #include <Arduino.h>
 
-#include "Core.h"
-#include "RadioLib.h"
+#include <RadioLib.h>
+
+#include "gel/Core.h"
 
 #define RADIO_MAX_MODULES 5
 
@@ -12,18 +13,6 @@ enum class ModulationType
 {
     LoRa,
     FSK,
-};
-
-struct RadioPins
-{
-    uint8_t nss;
-    uint8_t reset;
-    uint8_t dio0;
-    optional<uint8_t> dio1;
-    optional<uint8_t> dio2;
-    optional<uint8_t> dio3;
-    optional<uint8_t> dio4;
-    optional<SPIClass*> SPI;
 };
 
 struct LoRaConfig
@@ -47,6 +36,18 @@ struct RadioConfig
     ModulationConfig modConfig{};
 };
 
+struct RadioPins
+{
+    uint8_t nss;
+    uint8_t reset;
+    uint8_t dio0;
+    optional<uint8_t> dio1;
+    optional<uint8_t> dio2;
+    optional<uint8_t> dio3;
+    optional<uint8_t> dio4;
+    optional<SPIClass*> SPI;
+};
+
 class Radio
 {
 public:
@@ -59,6 +60,26 @@ public:
     
     Error receive();
 
+    expected<String, Error> readData();
+    
+    Error startListening();
+    size_t available();
+
+private:
+    static void receivedCallback0(void) { Radio::get(0)->receivedCallback(); }
+    static void receivedCallback1(void) { Radio::get(1)->receivedCallback(); }
+    static void receivedCallback2(void) { Radio::get(2)->receivedCallback(); }
+    static void receivedCallback3(void) { Radio::get(3)->receivedCallback(); }
+    static void receivedCallback4(void) { Radio::get(4)->receivedCallback(); }
+    void receivedCallback() { receivedFlag = true; };
+
+private:
+    static Radio* radios[RADIO_MAX_MODULES];
+    static uint8_t numModules;
+    static const uint32_t TIMEOUT_IN_MS = 2000;
+
+    static Radio* get(uint8_t idx);
+
 private:
     bool initialized = false;
 
@@ -68,6 +89,7 @@ private:
     SX1278 radio{nullptr};
     ModulationType modulation = ModulationType::LoRa;
 
+    bool receivedFlag = false;
     uint8_t moduleIdx;
 };
 

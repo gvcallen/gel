@@ -1,7 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
-#include <etl/expected.h>
+
+#include <gel/Core.h>
+
 namespace gel
 {
 
@@ -17,6 +19,7 @@ struct Error : Printable
         InvalidState,
         OutOfRange,
         Internal,
+        CapacityFull,
         NotImplemented,
     };
 
@@ -35,11 +38,5 @@ struct Error : Printable
     Code code = None;
     const char* message = nullptr;
 };
-
-template<typename TValue, typename TError>
-using expected = etl::expected<TValue, TError>;
-
-template<typename TError>
-using unexpected = etl::unexpected<TError>;
 
 } // namespace gel

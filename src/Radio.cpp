@@ -1,24 +1,19 @@
 #include <RadioLib.h>
 
-#include "gel/Radio.h"
 #include "gel/Core.h"
-
+#include "gel/Radio.h"
 
 namespace gel
 {
 
-const uint32_t TIMEOUT_IN_MS = 2000;
-bool receivedFlags[RADIO_MAX_MODULES];
-static uint8_t numModules = 0;
-
-static void receivedCallback0(void) { receivedFlags[0] = true; }
-static void receivedCallback1(void) { receivedFlags[1] = true; }
-static void receivedCallback2(void) { receivedFlags[2] = true; }
-static void receivedCallback3(void) { receivedFlags[3] = true; }
-static void receivedCallback4(void) { receivedFlags[4] = true; }
+uint8_t Radio::numModules = 0;
+Radio* Radio::radios[RADIO_MAX_MODULES] = {};
 
 Error Radio::begin(RadioPins pins, RadioConfig config)
 {
+    if (numModules == RADIO_MAX_MODULES)
+        return Error::CapacityFull;
+    
     if (pins.dio1.has_value())
         radio = new Module(pins.nss, pins.dio0, pins.reset, pins.dio1.value());
     else
@@ -52,6 +47,7 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
 
     moduleIdx = numModules;
     numModules++;
+    
     return Error::None;
 }
 
@@ -98,6 +94,42 @@ Error Radio::send(String msg)
 Error Radio::receive()
 {
     return Error::None;
+}
+
+Error Radio::startListening()
+{
+    radio.setPacketReceivedAction(receivedCallback0);
+    int state = radio.startReceive();
+
+    if (state != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    return Error::None;
+}
+
+size_t Radio::available()
+{
+    if (!receivedFlag == true)
+        return 0;
+
+    receivedFlag = false;
+    return radio.getPacketLength();
+}
+
+expected<String, Error> Radio::readData()
+{
+    String str;
+    int state = radio.readData(str);
+    
+    if (state != RADIOLIB_ERR_NONE)
+        return expected<String, Error>{unexpected<Error>{Error::Internal}};
+
+    return str;
+}
+
+Radio* Radio::get(uint8_t idx)
+{
+    return Radio::radios[idx];
 }
 
 } // namespace gel;

@@ -2,13 +2,20 @@
 
 #include <Arduino.h>
 
+#include "Error.h"
+
+#ifdef GEL_NO_STL
+#define ETL_NO_STL
+#endif
+
 #include <etl/optional.h>
 #include <etl/span.h>
-
-#include "Error.h"
+#include <etl/expected.h>
 
 namespace gel
 {
+
+using namespace etl;
 
 #define NUM_ELEMS(a) (sizeof(a)/sizeof 0[a])
 #define DEBUG_VARIABLE(x) Serial.print(#x " = "); Serial.println(x);
@@ -35,7 +42,5 @@ struct Vec3f
 template<typename T>
 using optional = etl::optional<T>;
 using etl::span;
-
-// test
 
 } // namespace gel
