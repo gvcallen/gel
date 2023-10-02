@@ -6,9 +6,10 @@
 namespace gel
 {
 
-int Gps::begin(Stream *gpsSerial)
+Error Gps::begin(Stream *gpsSerial)
 {
     this->gpsSerial = gpsSerial;
+    return Error::None;
 }
 
 int Gps::update()
@@ -54,16 +55,15 @@ expected<float, Error> Gps::getMagneticDeclination()
 {
     auto lng = getLongitude();
     if (!lng)
-        return lng.error();
+        return expected<float, Error>{unexpected<Error>{lng.error()}};
 
     auto lat = getLatitude();
     if (!lat)
-        return lat.error();
+        return expected<float, Error>{unexpected<Error>{lat.error()}};
 
     auto year = getYear();
     
-    auto decl = ::gel::getMagneticDeclination(lat.value(), lng.value(), year.value_or(2014));
-    return decl;
+    return gel::getMagneticDeclination(lat.value(), lng.value(), year.value_or(2014));
 }
 
 expected<uint8_t, Error> Gps::getSecond()

@@ -18,7 +18,7 @@ class Imu
 public:
     Imu() {};
 
-    expected<void, Error> begin(ImuPins pins);
+    Error begin(ImuPins pins);
     Vec3f getLinearAcceleration();
     Vec3f getRotationAcceleration();
 

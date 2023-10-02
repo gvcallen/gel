@@ -6,8 +6,9 @@
 namespace gel
 {
 
-expected<void, Error> Imu::begin(ImuPins pins)
+Error Imu::begin(ImuPins pins)
 {
+    return Error::None;
     // if (!mpu.init())
     // {
         // return Error::Uninitialized;
@@ -44,12 +45,12 @@ expected<void, Error> Imu::begin(ImuPins pins)
 
 Vec3f getLinearAcceleration()
 {
-
+    return Vec3f{};
 }
 
-Vec3f getRotationAcceleration()
+Vec3f getRotationalAcceleration()
 {
-
+  return Vec3f{};
 }
 
 

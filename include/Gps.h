@@ -11,7 +11,7 @@ class Gps
     public:
         Gps();
 
-        int begin(Stream *gpsSerial);
+        Error begin(Stream *gpsSerial);
         int update();
         expected<double, Error> getLatitude();
         expected<double, Error> getLongitude();
