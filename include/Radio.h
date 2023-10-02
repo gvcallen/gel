@@ -3,6 +3,8 @@
 #include "Core.h"
 #include "RadioLib.h"
 
+#define RADIO_MAX_MODULES 5
+
 namespace gel
 {
 
@@ -65,6 +67,8 @@ private:
     
     SX1278 radio{nullptr};
     ModulationType modulation = ModulationType::LoRa;
+
+    uint8_t moduleIdx;
 };
 
 } // namespace gel

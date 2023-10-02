@@ -3,10 +3,19 @@
 #include "Radio.h"
 #include "Core.h"
 
-const uint32_t TIMEOUT_IN_MS = 2000;
 
 namespace gel
 {
+
+const uint32_t TIMEOUT_IN_MS = 2000;
+bool receivedFlags[RADIO_MAX_MODULES];
+static uint8_t numModules = 0;
+
+static void receivedCallback0(void) { receivedFlags[0] = true; }
+static void receivedCallback1(void) { receivedFlags[1] = true; }
+static void receivedCallback2(void) { receivedFlags[2] = true; }
+static void receivedCallback3(void) { receivedFlags[3] = true; }
+static void receivedCallback4(void) { receivedFlags[4] = true; }
 
 Error Radio::begin(RadioPins pins, RadioConfig config)
 {
@@ -41,6 +50,8 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
     if (state != RADIOLIB_ERR_NONE)
         return Error::Internal;
 
+    moduleIdx = numModules;
+    numModules++;
     return Error::None;
 }
 
