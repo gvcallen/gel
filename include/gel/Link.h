@@ -10,28 +10,29 @@ namespace gel {
 struct LinkConfig
 {
     bool controller = false;
-    bool heartbeat = true;
+    uint32_t listenInterval = 9000;
+    uint32_t listenWindow = 1000;
 };
 
-using f_int_t = int(*)(int);
-using InteractiveCallback = Error(*)(span<uint8_t>, span<uint8_t>);
-using StreamingCallback = Error(*)(span<uint8_t>);
+
+using TelecommandCallback = Error(*)(span<uint8_t>, span<uint8_t>);     // Parameters: command, response
+using TelemetryCallback = Error(*)(span<uint8_t>);            // Parameters: telemetry
 
 // A half-duplex point-to-point communication link between a Controller and a Responder, with two modes:
-// Streaming:
+// Telemetry:
 //      Payloads are sent from the Responder at regular intervals, while the Controller scans for payloads.
 //      The Responder sends the time it left until it takes its next "break", where it will listen for a message for a short period.
 //      This is the state both parties start in. 
-// Interactive:
+// Telecommand:
 //      The Controller sends messages to the Responder, and the responder processes and responds approriately.
 class Link
 {
 public:
-    enum Status
+    enum State
     {
         Idle,                   // Idle. Not sending or receiving.
-        Streaming,              // Connected. Continuous data streaming from responder to controller.
-        Interactive,            // Connected. Interactive commands/requests from controller, and replies from responder.
+        Telemetry,              // Connected. Continuous telemetry from responder to controller.
+        Telecommand,            // Connected. Telecommands from controller, and replies from responder.
     };
 
 public:
@@ -40,21 +41,28 @@ public:
     Error begin(Radio &radio, LinkConfig config);
     Error update();
 
-    void setInteractiveCallback(InteractiveCallback callback) {this->interactiveCallback = callback; };
-    void setStreamingCallback(StreamingCallback callback) {this->streamingCallback = callback; };
+    void setTelecommandCallback(TelecommandCallback callback) { this->telecommandCallback = callback; };
+    void setTelemetryCallback(TelemetryCallback callback) { this->telemetryCallback = callback; };
 
-    Status getStatus() { return status; }
+    void setState(State newState) { this->state = newState; }
+    State getState() { return state; }
+
+private:
+    Error update_telemetry();
+    Error update_telecommand();
 
 private:
     bool initialized = false;
     Radio *radio;
     LinkConfig config;
     
-    Status status = Idle;
-    InteractiveCallback interactiveCallback;
-    StreamingCallback streamingCallback;
+    State state = Idle;
+    TelecommandCallback telecommandCallback;
+    TelemetryCallback telemetryCallback;
 
-    uint32_t lastRecieveTime = 0;
+    uint32_t prevRecieveTime = 0;
+    uint32_t prevListenTime = 0;
+    bool listening = false;
     vector<uint8_t, LINK_MAX_PAYLOAD> receivePayload;
     vector<uint8_t, LINK_MAX_PAYLOAD> sendPayload;
 

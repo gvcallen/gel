@@ -16,11 +16,19 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
 
     this->pins = pins;
     this->config = config;
+
+    #ifdef GEL_USE_LORALIB
+    if (pins.dio1.has_value())
+        return gel::Error::UnsupportedParameter;
+    radio.setPins(pins.nss, pins.reset, pins.dio0);
+    
+    #else
     
     if (pins.dio1.has_value())
         radio = new Module(pins.nss, pins.dio0, pins.reset, pins.dio1.value());
     else
         radio = new Module(pins.nss, pins.dio0, pins.reset);
+    #endif
 
     if (pins.SPI.has_value())
         return Error::NotImplemented;
@@ -31,6 +39,21 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
         case ModulationType::LoRa:
         {
             LoRaConfig& loraConfig = config.modConfig.lora;
+            
+            #ifdef GEL_USE_LORALIB
+            
+            radio.setFrequency(config.frequency);
+            radio.setSignalBandwidth(loraConfig.bandwidth);
+            radio.setCodingRate4(loraConfig.codeRate);
+            radio.setSyncWord(config.syncWord);
+            radio.setTxPower(config.outputPower);
+            radio.setPreambleLength(config.preambleLength);
+
+            if (loraConfig.implicitHeader && !config.payloadLength.has_value())
+                return Error::BadParameter;
+            
+            #else
+            
 
             err = radio.begin(config.frequency * 1.0e-6,
                               loraConfig.bandwidth * 1.0e-3,
@@ -47,25 +70,35 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
                 else
                     return Error::BadParameter;
             }
+
+            #endif
             break;
         }
             
         case ModulationType::FSK:
         {
-            // FSKConfig& fskConfig = config.modConfig.fsk;
-            // err = radio.beginFSK(config.frequency * 1.0e-6,
-                                //  fskConfig.bitRate * 1e-3,
-                                //  fskConfig.frequencyDeviation * 1.0e-3,
-                                //  fskConfig.bandwidth * 1e-3,
-                                //  config.outputPower,
-                                //  config.preambleLength);
+            #ifdef GEL_USE_LORALIB
 
-            // radio.packetMode();
+            return Error::UnsupportedParameter;
+
+            #else
+
+            FSKConfig& fskConfig = config.modConfig.fsk;
+            err = radio.beginFSK(config.frequency * 1.0e-6,
+                                 fskConfig.bitRate * 1e-3,
+                                 fskConfig.frequencyDeviation * 1.0e-3,
+                                 fskConfig.bandwidth * 1e-3,
+                                 config.outputPower,
+                                 config.preambleLength);
+
+            radio.packetMode();
             
-            // if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
-            // else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
-            // else if (fskConfig.dataShaping == 0.5) radio.setDataShaping(RADIOLIB_SHAPING_0_5);
-            // else if (fskConfig.dataShaping == 1.0) radio.setDataShaping(RADIOLIB_SHAPING_1_0);
+            if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
+            else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
+            else if (fskConfig.dataShaping == 0.5) radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+            else if (fskConfig.dataShaping == 1.0) radio.setDataShaping(RADIOLIB_SHAPING_1_0);
+
+            #endif
             
             break;
         }
@@ -81,72 +114,42 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
     instances[instanceIdx] = this;
     numInstances++;
 
+    #ifdef GEL_USE_LORALIB
+
+    if (numInstances > 1)
+        return Error::CapacityFull;
+
+    radio.onReceive(callback0_int);
+    radio.onTxDone(callback0);
+
+    #else
+
     switch (instanceIdx)
     {
         case 0: radio.setDio0Action(callback0, RISING); break;
         case 1: radio.setDio0Action(callback1, RISING); break;
-        case 2: radio.setDio0Action(callback2, RISING); break;
-        case 3: radio.setDio0Action(callback3, RISING); break;
-        case 4: radio.setDio0Action(callback4, RISING); break;
     }
+
+    #endif
     
     initialized = true;
     return standby();
 }
 
-Error Radio::transmit(span<uint8_t> msg)
-{
-    setState(Transmitting);
-    int err = radio.transmit(msg.data(), msg.size());
-    setState(Idle);
-  
-    if (err != RADIOLIB_ERR_NONE)
-    {
-        if (err == RADIOLIB_ERR_PACKET_TOO_LONG)
-            return Error::OutOfRange;
-        else if (err == RADIOLIB_ERR_TX_TIMEOUT)
-            return Error::Timeout;
-        else
-            return Error::Internal;
-    }
-  
-    return Error::None;
-}
-
-Error Radio::transmit(const char* msg)
-{
-    setState(Transmitting);
-    int err = radio.transmit(msg);
-    setState(Idle);
-  
-    if (err != RADIOLIB_ERR_NONE)
-    {
-        if (err == RADIOLIB_ERR_PACKET_TOO_LONG)
-            return Error::OutOfRange;
-        else if (err == RADIOLIB_ERR_TX_TIMEOUT)
-            return Error::Timeout;
-        else
-            return Error::Internal;
-    }
-  
-    return Error::None;
-}
-
-Error Radio::transmit(String msg)
-{
-    return this->transmit(msg.c_str());
-}
-
-Error Radio::receive()
-{
-    return Error::None;
-}
-
 Error Radio::startReceive()
 {
-    int err = radio.startReceive();
-
-    if (err != RADIOLIB_ERR_NONE)
+    int err = 0;
+    
+    #ifdef GEL_USE_LORALIB
+    if (config.modConfig.lora.implicitHeader)
+        radio.receive(config.payloadLength.value());
+    else
+        radio.receive();
+    #else
+    err = radio.startReceive();
+    #endif
+    
+    if (err != 0)
         return Error::Internal;
 
     setState(Receiving);
@@ -155,81 +158,79 @@ Error Radio::startReceive()
 
 Error Radio::startTransmit(span<uint8_t> msg)
 {
-    int err = radio.startTransmit(msg.data(), msg.size());
+    int err = 0;
 
-    if (err != RADIOLIB_ERR_NONE)
+    #ifdef GEL_USE_LORALIB
+    radio.beginPacket(config.modConfig.lora.implicitHeader);
+    radio.write(msg.data(), msg.size());
+    err = radio.endPacket(true);
+    #else
+    err = radio.startTransmit(msg.data(), msg.size());
+    #endif
+
+    if (err != 0)
         return Error::Internal;
 
     setState(Transmitting);
-    return Error::None;
-}
-
-Error Radio::startTransmit(const char* msg)
-{
-    int err = radio.startTransmit(msg);
-
-    if (err != RADIOLIB_ERR_NONE)
-        return Error::Internal;
-
-    setState(Transmitting);
-    return Error::None;
-}
-
-Error Radio::startTransmit(String msg)
-{
-    int err = radio.startTransmit(msg);
-
-    if (err != RADIOLIB_ERR_NONE)
-        return Error::Internal;
-
-    setState(Transmitting);
-    return Error::None;
-}
-
-Error Radio::startBroadcast(size_t preambleLength)
-{   
-    setPreambleLength(preambleLength);
-
-    int err = radio.startTransmit("");
-
-    if (err != RADIOLIB_ERR_NONE)
-        return Error::Internal;
-
-    setState(Broadcasting);
     return Error::None;
 }
 
 Error Radio::startScan()
 {
+    #ifdef GEL_USE_LORALIB
+    return Error::UnsupportedParameter;
+    #else
     int err = radio.startChannelScan();
     if (err)
         return gel::Error::Internal;
     
     setState(Scanning);
     return Error::None;
+    #endif
 }
 
-uint32_t Radio::getTimeOnAir(size_t payloadLength)
+// uint32_t Radio::getTimeOnAir(size_t payloadLength)
+// {
+    // return radio.getTimeOnAir(payloadLength);
+// }
+
+float Radio::getRssi()
 {
-    return radio.getTimeOnAir(payloadLength);
+    #ifdef GEL_USE_LORALIB
+    return (float)radio.packetRssi();
+    #else
+    return radio.getRSSI();
+    #endif
 }
 
 Error Radio::sleep()
 {
-    int err = radio.sleep();
+    int err = 0;
+    
+    #ifdef GEL_USE_LORALIB
+    radio.sleep();
+    #else
+    err = radio.sleep();
+    #endif
 
-    if (err != RADIOLIB_ERR_NONE)
+    if (err != 0)
         return Error::Internal;
 
     setState(Idle);
-    return Error::None;        
+    return Error::None;
 }
 
 Error Radio::standby()
 {
-    int err = radio.standby();
+    int err = 0;
+    
+    #ifdef GEL_USE_LORALIB
+    radio.idle();
+    #else
+    err = radio.standby();
+    #endif
 
-    if (err != RADIOLIB_ERR_NONE)
+    if (err != 0)
         return Error::Internal;
 
     setState(Idle);
@@ -245,22 +246,12 @@ void Radio::setState(State newState)
 void Radio::callback()
 {
     if (currentState == Receiving)
-    {
         dataReceived = true;
-    }
     else
-    {
         setState(Idle);
-    }
     
-    if (currentState == Broadcasting)
-    {
-        setPreambleLength(config.preambleLength);
-    }
-    else if (currentState == Scanning)
-    {
+    if (currentState == Scanning)
         standby();
-    }
 };
 
 size_t Radio::available()
@@ -268,16 +259,29 @@ size_t Radio::available()
     if (!(currentState == Receiving) || !(dataReceived == true))
         return 0;
 
+    #ifdef GEL_USE_LORALIB
+    return radio.available();
+    #else
     return radio.getPacketLength();
+    #endif
 }
 
 expected<String, Error> Radio::readData()
 {
+    int err;
     String str;
-    int err = radio.readData(str);
+
+    if (!dataReceived)
+        return str;
+
+    #ifdef GEL_USE_LORALIB
+    str = radio.readString();
+    #else
+    err = radio.readData(str);
+    #endif
+
     dataReceived = false;
-    
-    if (err != RADIOLIB_ERR_NONE)
+    if (err != 0)
         return expected<String, Error>{unexpected<Error>{Error::Internal}};
 
     return str;
@@ -285,7 +289,13 @@ expected<String, Error> Radio::readData()
 
 Error Radio::setPreambleLength(size_t length)
 {
-    int err = radio.setPreambleLength(length);
+    int err = 0;
+    
+    #ifdef GEL_USE_LORALIB
+    radio.setPreambleLength(length);
+    #else
+    err = radio.setPreambleLength(length);
+    #endif
 
     if (err != RADIOLIB_ERR_NONE)
         return Error::Internal;

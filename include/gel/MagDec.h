@@ -5,9 +5,9 @@ namespace gel
 
 struct MagneticDeclinationCorrection
 {
-    int year;
-    int lat;
-    int lon;
+    uint8_t year;
+    int8_t lat;
+    int8_t lon;
     float magdec;
 };
 

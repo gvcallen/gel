@@ -1,12 +1,17 @@
 #pragma once
 
 #include <Arduino.h>
+
+#ifdef GEL_USE_LORALIB
+#include <LoRa.h>
+#else
 #include <RadioLib.h>
+#endif
 
 #include "gel/Core.h"
 
 // NB: Callback functions must be added approriately if this is changed
-#define RADIO_MAX_INSTANCES 5
+#define RADIO_MAX_INSTANCES 2
 
 namespace gel
 {
@@ -71,7 +76,6 @@ public:
         Idle = 0,           // Note that if the device is sleep, it is in this state, however it could also just be neither receiving not transmitting
         Transmitting,
         Receiving,
-        Broadcasting,
         Scanning,
     };
 
@@ -81,15 +85,8 @@ public:
     Error begin(RadioPins pins, RadioConfig config);
 
     // Transmit and receive    
-    Error transmit(span<uint8_t> msg);
-    Error transmit(const char* msg);
-    Error transmit(String msg);
-    Error receive();
     Error startTransmit(span<uint8_t> msg);
-    Error startTransmit(const char* msg);
-    Error startTransmit(String msg);
     Error startReceive();
-    Error startBroadcast(size_t preambleLength = 65535);
     Error startScan();
 
     // Change to idle modes
@@ -101,11 +98,10 @@ public:
     size_t available();
 
     // Get information about the system
-    float getRssi() { return radio.getRSSI(); }
-    float getDataRate() { return radio.getDataRate(); }
+    float getRssi();
     State getState() { return currentState; }
     State getPrevState() { return prevState; }
-    uint32_t getTimeOnAir(size_t payloadLength = 0);
+    // uint32_t getTimeOnAir(size_t payloadLength = 0);
 
     // Change settings
     Error setPreambleLength(size_t length);
@@ -113,9 +109,7 @@ public:
 private:
     static void callback0(void) { Radio::get(0)->callback(); }
     static void callback1(void) { Radio::get(1)->callback(); }
-    static void callback2(void) { Radio::get(2)->callback(); }
-    static void callback3(void) { Radio::get(3)->callback(); }
-    static void callback4(void) { Radio::get(4)->callback(); }
+    static void callback0_int(int packetLength) { Radio::get(0)->callback(); }
     void callback();
 
 private:
@@ -136,11 +130,16 @@ private:
     
     ModulationType modulation = ModulationType::LoRa;
 
-    SX1278 radio {nullptr};
     uint8_t instanceIdx;
     bool dataReceived = false;
     volatile State currentState = Idle;
     State prevState = Idle;
+
+    #ifdef GEL_USE_LORALIB
+    LoRaClass& radio = LoRa;
+    #else
+    SX1278 radio {nullptr};
+    #endif
 };
 
 } // namespace gel

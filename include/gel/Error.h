@@ -5,7 +5,7 @@
 #include <gel/Core.h>
 
 namespace gel
-{
+{ 
 
 struct Error : Printable
 {
@@ -15,6 +15,7 @@ struct Error : Printable
         Timeout,
         NotFound,
         BadParameter,
+        UnsupportedParameter,
         BadCommunication,
         InvalidState,
         OutOfRange,
