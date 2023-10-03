@@ -1,5 +1,6 @@
-#include <Arduino.h>
+#pragma once
 
+#include <Arduino.h>
 #include <RadioLib.h>
 
 #include "gel/Core.h"
@@ -48,7 +49,6 @@ struct RadioConfig
     optional<size_t> payloadLength = nullopt;               // Must be specified for "fixed length" modes
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{};
-    bool master = false;
 };
 
 struct RadioPins
@@ -77,7 +77,7 @@ public:
 
 public:
     // Construction
-    Radio() {};
+    Radio() = default;
     Error begin(RadioPins pins, RadioConfig config);
 
     // Transmit and receive    

@@ -52,20 +52,20 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
             
         case ModulationType::FSK:
         {
-            FSKConfig& fskConfig = config.modConfig.fsk;
-            err = radio.beginFSK(config.frequency * 1.0e-6,
-                                 fskConfig.bitRate * 1e-3,
-                                 fskConfig.frequencyDeviation * 1.0e-3,
-                                 fskConfig.bandwidth * 1e-3,
-                                 config.outputPower,
-                                 config.preambleLength);
+            // FSKConfig& fskConfig = config.modConfig.fsk;
+            // err = radio.beginFSK(config.frequency * 1.0e-6,
+                                //  fskConfig.bitRate * 1e-3,
+                                //  fskConfig.frequencyDeviation * 1.0e-3,
+                                //  fskConfig.bandwidth * 1e-3,
+                                //  config.outputPower,
+                                //  config.preambleLength);
 
-            radio.packetMode();
+            // radio.packetMode();
             
-            if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
-            else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
-            else if (fskConfig.dataShaping == 0.5) radio.setDataShaping(RADIOLIB_SHAPING_0_5);
-            else if (fskConfig.dataShaping == 1.0) radio.setDataShaping(RADIOLIB_SHAPING_1_0);
+            // if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
+            // else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
+            // else if (fskConfig.dataShaping == 0.5) radio.setDataShaping(RADIOLIB_SHAPING_0_5);
+            // else if (fskConfig.dataShaping == 1.0) radio.setDataShaping(RADIOLIB_SHAPING_1_0);
             
             break;
         }
@@ -201,8 +201,12 @@ Error Radio::startBroadcast(size_t preambleLength)
 
 Error Radio::startScan()
 {
-    radio.startChannelScan();
+    int err = radio.startChannelScan();
+    if (err)
+        return gel::Error::Internal;
+    
     setState(Scanning);
+    return Error::None;
 }
 
 uint32_t Radio::getTimeOnAir(size_t payloadLength)

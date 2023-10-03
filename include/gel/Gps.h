@@ -1,18 +1,18 @@
-namespace gel
-{
-
 #include <Arduino.h>
 #include <TinyGPS++.h>
 
-#include "Core.h"
+#include "gel/Core.h"
+
+namespace gel
+{
 
 class Gps
 {
     public:
-        Gps();
+        Gps() = default;
 
         Error begin(Stream *gpsSerial);
-        int update();
+        Error update();
         expected<double, Error> getLatitude();
         expected<double, Error> getLongitude();
         expected<double, Error> getAltitude();
@@ -25,8 +25,8 @@ class Gps
         expected<uint16_t, Error> getYear();
 
     private:
-        TinyGPSPlus tinyGps;
-        Stream *gpsSerial;
+        TinyGPSPlus tinyGps{};
+        Stream *gpsSerial = nullptr;
 };
 
 } // namespace gel

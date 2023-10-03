@@ -10,19 +10,18 @@ namespace gel
 Error Gps::begin(Stream *gpsSerial)
 {
     this->gpsSerial = gpsSerial;
+
     return Error::None;
 }
 
-int Gps::update()
+Error Gps::update()
 {
     if (gpsSerial->available() > 0)
     {
         char c = gpsSerial->read();
         bool encodeResult = tinyGps.encode(c);
         if (!encodeResult)
-        {
             return Error::BadCommunication;
-        }
     }
 
     return Error::None;

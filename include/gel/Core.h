@@ -11,6 +11,7 @@
 #include <etl/optional.h>
 #include <etl/span.h>
 #include <etl/expected.h>
+#include <etl/vector.h>
 
 namespace gel
 {
@@ -41,7 +42,13 @@ struct Vec3f
 
 template<typename T>
 using optional = etl::optional<T>;
-using etl::span;
+
+template<typename T, const size_t MAX_SIZE>
+using vector = etl::vector<T, MAX_SIZE>;
+
+template<typename T>
+using span = etl::span<T>;
+
 using etl::nullopt;
 
 } // namespace gel

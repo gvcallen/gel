@@ -97,7 +97,7 @@ void StepperMotor::stepDivisional(bool backwards)
 void StepperMotor::stepN(double numSteps, bool backwards)
 {
     double integral;
-    double fractional = modf(numSteps, &integral);
+    double _fractional = modf(numSteps, &integral);
 
     uint32_t numFullSteps = (uint32_t)integral;
     
