@@ -39,6 +39,14 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
                               config.syncWord,
                               config.outputPower,
                               config.preambleLength);
+
+            if (loraConfig.implicitHeader)
+            {
+                if (config.payloadLength.has_value())
+                    radio.implicitHeader(config.payloadLength.value());
+                else
+                    return Error::BadParameter;
+            }
             break;
         }
             
@@ -51,6 +59,8 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
                                  fskConfig.bandwidth * 1e-3,
                                  config.outputPower,
                                  config.preambleLength);
+
+            radio.packetMode();
             
             if      (fskConfig.dataShaping == 0.0) radio.setDataShaping(RADIOLIB_SHAPING_NONE);
             else if (fskConfig.dataShaping == 0.3) radio.setDataShaping(RADIOLIB_SHAPING_0_3);
@@ -80,8 +90,8 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
         case 4: radio.setDio0Action(callback4, RISING); break;
     }
     
-    standby();
-    return Error::None;
+    initialized = true;
+    return standby();
 }
 
 Error Radio::transmit(span<uint8_t> msg)
@@ -176,6 +186,30 @@ Error Radio::startTransmit(String msg)
     return Error::None;
 }
 
+Error Radio::startBroadcast(size_t preambleLength)
+{   
+    setPreambleLength(preambleLength);
+
+    int err = radio.startTransmit("");
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    setState(Broadcasting);
+    return Error::None;
+}
+
+Error Radio::startScan()
+{
+    radio.startChannelScan();
+    setState(Scanning);
+}
+
+uint32_t Radio::getTimeOnAir(size_t payloadLength)
+{
+    return radio.getTimeOnAir(payloadLength);
+}
+
 Error Radio::sleep()
 {
     int err = radio.sleep();
@@ -200,21 +234,34 @@ Error Radio::standby()
 
 void Radio::setState(State newState)
 {
-    operationDone = false;
     prevState = currentState;
     currentState = newState;
 }
 
 void Radio::callback()
 {
-    operationDone = true;
-    if (currentState == Transmitting)
+    if (currentState == Receiving)
+    {
+        dataReceived = true;
+    }
+    else
+    {
         setState(Idle);
+    }
+    
+    if (currentState == Broadcasting)
+    {
+        setPreambleLength(config.preambleLength);
+    }
+    else if (currentState == Scanning)
+    {
+        standby();
+    }
 };
 
 size_t Radio::available()
 {
-    if (!(currentState == Receiving) || !(operationDone == true))
+    if (!(currentState == Receiving) || !(dataReceived == true))
         return 0;
 
     return radio.getPacketLength();
@@ -224,12 +271,22 @@ expected<String, Error> Radio::readData()
 {
     String str;
     int err = radio.readData(str);
-    operationDone = false;
+    dataReceived = false;
     
     if (err != RADIOLIB_ERR_NONE)
         return expected<String, Error>{unexpected<Error>{Error::Internal}};
 
     return str;
+}
+
+Error Radio::setPreambleLength(size_t length)
+{
+    int err = radio.setPreambleLength(length);
+
+    if (err != RADIOLIB_ERR_NONE)
+        return Error::Internal;
+
+    return Error::None;
 }
 
 Radio* Radio::get(uint8_t idx)

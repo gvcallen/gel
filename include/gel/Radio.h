@@ -21,6 +21,7 @@ struct LoRaConfig
     uint8_t spreadingFactor = 9;
     uint8_t codeRate = 7;
     float bandwidth = 125.0e3;
+    bool implicitHeader = true;
 };
 
 struct FSKConfig
@@ -44,6 +45,7 @@ struct RadioConfig
     uint32_t syncWord = 0x12;
     uint8_t outputPower = 10;                               // 2 to 17 dBm
     uint8_t preambleLength = 10;                            // 6 to 65535
+    optional<size_t> payloadLength = nullopt;               // Must be specified for "fixed length" modes
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{};
     bool master = false;
@@ -69,33 +71,44 @@ public:
         Idle = 0,           // Note that if the device is sleep, it is in this state, however it could also just be neither receiving not transmitting
         Transmitting,
         Receiving,
+        Broadcasting,
+        Scanning,
     };
 
 public:
+    // Construction
     Radio() {};
     Error begin(RadioPins pins, RadioConfig config);
-    
+
+    // Transmit and receive    
     Error transmit(span<uint8_t> msg);
     Error transmit(const char* msg);
     Error transmit(String msg);
     Error receive();
-
     Error startTransmit(span<uint8_t> msg);
     Error startTransmit(const char* msg);
     Error startTransmit(String msg);
     Error startReceive();
+    Error startBroadcast(size_t preambleLength = 65535);
+    Error startScan();
 
+    // Change to idle modes
     Error sleep();
     Error standby();
 
+    // Read data available in the registers
     expected<String, Error> readData();
-    
     size_t available();
 
+    // Get information about the system
     float getRssi() { return radio.getRSSI(); }
     float getDataRate() { return radio.getDataRate(); }
     State getState() { return currentState; }
     State getPrevState() { return prevState; }
+    uint32_t getTimeOnAir(size_t payloadLength = 0);
+
+    // Change settings
+    Error setPreambleLength(size_t length);
 
 private:
     static void callback0(void) { Radio::get(0)->callback(); }
@@ -125,7 +138,7 @@ private:
 
     SX1278 radio {nullptr};
     uint8_t instanceIdx;
-    bool operationDone = false;
+    bool dataReceived = false;
     volatile State currentState = Idle;
     State prevState = Idle;
 };

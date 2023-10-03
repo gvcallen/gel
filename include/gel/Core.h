@@ -42,5 +42,6 @@ struct Vec3f
 template<typename T>
 using optional = etl::optional<T>;
 using etl::span;
+using etl::nullopt;
 
 } // namespace gel
