@@ -21,6 +21,21 @@ using namespace etl;
 #define NUM_ELEMS(a) (sizeof(a)/sizeof 0[a])
 #define DEBUG_VARIABLE(x) Serial.print(#x " = "); Serial.println(x);
 
+#define PI_OVER_180 (M_PI / 180.0)
+#define PI_TIMES_2 (2.0 * M_PI)
+
+struct Bounds1f
+{
+    float min;
+    float max;
+};
+
+struct Bounds1d
+{
+    double min;
+    double max;
+};
+
 struct Vec3f
 {
     float x, y, z;

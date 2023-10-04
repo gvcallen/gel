@@ -44,7 +44,7 @@ public:
     void setTelecommandCallback(TelecommandCallback callback) { this->telecommandCallback = callback; };
     void setTelemetryCallback(TelemetryCallback callback) { this->telemetryCallback = callback; };
 
-    void setState(State newState) { this->state = newState; }
+    void setState(State newState);
     State getState() { return state; }
 
 private:
@@ -61,7 +61,8 @@ private:
     TelemetryCallback telemetryCallback;
 
     uint32_t prevRecieveTime = 0;
-    uint32_t prevListenTime = 0;
+    uint32_t telecommandStartTime = 0;
+    uint32_t telemetryStartTime = 0;
     bool listening = false;
     vector<uint8_t, LINK_MAX_PAYLOAD> receivePayload;
     vector<uint8_t, LINK_MAX_PAYLOAD> sendPayload;

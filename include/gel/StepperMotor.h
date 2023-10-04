@@ -23,59 +23,61 @@ struct StepperMotorPins
 
 struct StepperMotorConfig
 {
-    uint8_t stepDivision = 1;
     uint8_t numCurrentLevels = 4;
     bool reverseDirection = true;
     bool activeLow = true;
-    double stepRange = 0.0; // number of full steps in range, if mechanically stopped. Leave as 0 for no mechanical stop (360 degrees)
-    uint32_t stepDelay = 1000; // in microseconds
+    uint32_t stepDelay = 20000; // in microseconds
 };
 
 class StepperMotor
 {
 public:
+    enum State
+    {
+        Holding,
+        FullStepping,
+        HalfStepping,
+    };
+public:
     StepperMotor() { initialized = false; };
     
-    int begin(StepperMotorPins pins, StepperMotorConfig config);
-    void calibrate();
+    gel::Error begin(StepperMotorPins pins, StepperMotorConfig config);
 
-    void move(double position);
-    double getPosition();
     void stepForward(double numSteps);
     void stepBackward(double numSteps);
-    void returnToZero();
+    double cycleForward();
+    double cycleBackward();
     
+    void saveZeroPosition() { currentStep = 0.0; };
+    double getPosition() { return currentStep; }
     void setSpeed(float speedMultiplier);
     Error setCurrentMultiplier(float currentLimit);
-    void enableHolding(float currentMultiplier = 1.0);
-    void enableHalfStepping(float currentMultiplier = 1.0);
-    void enableFullStepping(float currentMultiplier = 1.0);
+
+    void setState(State state, float currentMultiplier = 1.0);
 
 private:
     void stepDivisional(bool backwards = false);
     void stepN(double numSteps, bool backwards = false);
     void updateIO();
-    void enableState(const bool directionStatesA[], const bool directionStatesB[], const float currentStatesA[], const float currentStatesB[], uint8_t numStates);
+    void setStateArrays(const bool directionStatesA[], const bool directionStatesB[], const float currentStatesA[], const float currentStatesB[], uint8_t numStates);
 
 private:
     bool initialized;
     StepperMotorPins pins;
     StepperMotorConfig config;
     
-    float currentMultiplier = 0.0;
-    bool currentMultiplierSet = false;
-
     uint8_t numStates;
-    uint8_t stateIdx;
-    
+    uint8_t stateIdx;    
     bool directionStatesA[MOTOR_MAX_STATES];
     bool directionStatesB[MOTOR_MAX_STATES];
     float currentStatesA[MOTOR_MAX_STATES];
     float currentStatesB[MOTOR_MAX_STATES];
+    State state;
     
+    float currentMultiplier = 0.0;
     float speedMultiplier = 1.0;
-    double position = 0.0; // in (fractional) full steps
     uint32_t prevStepTime; // in microseconds
+    double currentStep = 0.0;
 };
 
 

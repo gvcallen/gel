@@ -27,7 +27,7 @@ struct LoRaConfig
     uint8_t spreadingFactor = 9;
     uint8_t codeRate = 7;
     float bandwidth = 125.0e3;
-    bool implicitHeader = true;
+    bool implicitHeader = false;
 };
 
 struct FSKConfig
@@ -86,6 +86,7 @@ public:
 
     // Transmit and receive    
     Error startTransmit(span<uint8_t> msg);
+    Error startTransmit(String msg);
     Error startReceive();
     Error startScan();
 

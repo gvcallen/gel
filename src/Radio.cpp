@@ -11,17 +11,26 @@ Radio* Radio::instances[RADIO_MAX_INSTANCES] = {};
 
 Error Radio::begin(RadioPins pins, RadioConfig config)
 {
+    int err = Error::None;
+
     if (numInstances == RADIO_MAX_INSTANCES)
         return Error::CapacityFull;
+
+    if (config.modConfig.lora.implicitHeader && !config.payloadLength.has_value())
+        return Error::BadParameter;
+
+    if (pins.SPI.has_value())
+        return Error::NotImplemented;        
 
     this->pins = pins;
     this->config = config;
 
     #ifdef GEL_USE_LORALIB
+
     if (pins.dio1.has_value())
         return gel::Error::UnsupportedParameter;
     radio.setPins(pins.nss, pins.reset, pins.dio0);
-    
+
     #else
     
     if (pins.dio1.has_value())
@@ -30,10 +39,6 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
         radio = new Module(pins.nss, pins.dio0, pins.reset);
     #endif
 
-    if (pins.SPI.has_value())
-        return Error::NotImplemented;
-
-    int err = Error::None;
     switch (config.modType)
     {
         case ModulationType::LoRa:
@@ -41,6 +46,9 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
             LoRaConfig& loraConfig = config.modConfig.lora;
             
             #ifdef GEL_USE_LORALIB
+
+            if (!radio.begin(config.frequency))
+                return Error::Internal;
             
             radio.setFrequency(config.frequency);
             radio.setSignalBandwidth(loraConfig.bandwidth);
@@ -48,9 +56,6 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
             radio.setSyncWord(config.syncWord);
             radio.setTxPower(config.outputPower);
             radio.setPreambleLength(config.preambleLength);
-
-            if (loraConfig.implicitHeader && !config.payloadLength.has_value())
-                return Error::BadParameter;
             
             #else
             
@@ -175,6 +180,12 @@ Error Radio::startTransmit(span<uint8_t> msg)
     return Error::None;
 }
 
+Error Radio::startTransmit(String msg)
+{
+    span<uint8_t> msgSpan((uint8_t*)msg.c_str(), msg.length());
+    return startTransmit(msgSpan);
+}
+
 Error Radio::startScan()
 {
     #ifdef GEL_USE_LORALIB
@@ -245,6 +256,8 @@ void Radio::setState(State newState)
 
 void Radio::callback()
 {
+    Serial.println("Callback!");
+    
     if (currentState == Receiving)
         dataReceived = true;
     else

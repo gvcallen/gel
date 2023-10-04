@@ -13,24 +13,31 @@ Error Link::begin(Radio &radio, LinkConfig config)
     return Error::None;
 }
 
+void Link::setState(State newState)
+{
+    this->state = newState;
+    if (newState == Telemetry)
+        telemetryStartTime = millis();
+    else if (newState == Telecommand)
+        telecommandStartTime = millis();
+}
+
 Error Link::update()
 {
     // Decide if "listening" must be toggled. Could also be implemented with interrupts -
     // we choose to use times with an "update" function instead to give the user the choice.
     uint32_t currentTime = millis();
-    if ((currentTime - prevListenTime) > config.listenWindow)
+    if (listening && (currentTime - telecommandStartTime > config.listenWindow))
     {
-        if (listening)
-        {
-            setState(Telemetry);
-        }
-        else
-        {
-            setState(Telecommand);
-            prevListenTime = currentTime;
-        }
-
-        listening = !listening;
+        Serial.println("Sending telemetry");
+        setState(Telemetry);
+        listening = false;
+    }
+    if (!listening && (currentTime - telemetryStartTime) > config.listenInterval)
+    {
+        Serial.println("Listening");
+        setState(Telecommand);
+        listening = true;
     }
     
     // Update for the relevant sub-state
