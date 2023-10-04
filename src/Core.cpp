@@ -3,6 +3,14 @@
 namespace gel
 {
 
+double normalizeAngle2PI(double x)
+{
+    x = fmod (x, PI_TIMES_2);
+    if (x < 0.0)
+        x += PI_TIMES_2;
+    return x;
+}
+
 Vec3f::Vec3f()
     : Vec3f(0.f, 0.f, 0.f)
 {

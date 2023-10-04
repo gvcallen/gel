@@ -76,13 +76,9 @@ void StepperMotor::stepDivisional(bool backwards)
 }
 
 void StepperMotor::stepN(double numSteps, bool backwards)
-{   
-    if (!backwards)
-        this->currentStep += numSteps;
-    else
-        this->currentStep -= numSteps;
-    
+{       
     uint32_t numDivisionalSteps = 0;
+    double numFullSteps = 0.0;
     float divisionSpeedMultiplier = 1.0;
 
     if (state == FullStepping)
@@ -90,14 +86,22 @@ void StepperMotor::stepN(double numSteps, bool backwards)
         round(numSteps);
         numDivisionalSteps = (uint32_t)numSteps;
         divisionSpeedMultiplier = speedMultiplier;
+        numFullSteps = numDivisionalSteps;
     }
     else if (state == HalfStepping)
     {
         numSteps *= 2.0;
         round(numSteps);
         numDivisionalSteps = numSteps;
+        numFullSteps = numDivisionalSteps / 2.0;
+        DEBUG_VARIABLE(numFullSteps);
         divisionSpeedMultiplier = speedMultiplier * 2.0;
     }
+
+    if (!backwards)
+        this->currentStep += numFullSteps;
+    else
+        this->currentStep -= numFullSteps;    
 
     for (uint32_t i = 0; i < numDivisionalSteps; i++)
     {
@@ -143,13 +147,11 @@ void StepperMotor::updateIO()
     uint8_t directionA = directionStatesA[stateIdx];
     uint8_t directionB = directionStatesB[stateIdx];
 
-
     if (config.activeLow)
     {
         currentA = maxCurrentLevel - currentA;
         currentB = maxCurrentLevel - currentB;
     }
-
     
     digitalWrite(pins.i01, currentA & 0b01);
     digitalWrite(pins.i11, currentA & 0b10);

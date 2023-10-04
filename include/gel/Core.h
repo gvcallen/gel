@@ -24,6 +24,8 @@ using namespace etl;
 #define PI_OVER_180 (M_PI / 180.0)
 #define PI_TIMES_2 (2.0 * M_PI)
 
+double normalizeAngle2PI(double x);
+
 struct Bounds1f
 {
     float min;

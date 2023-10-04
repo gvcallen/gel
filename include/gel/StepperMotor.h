@@ -49,6 +49,7 @@ public:
     double cycleBackward();
     
     void saveZeroPosition() { currentStep = 0.0; };
+
     double getPosition() { return currentStep; }
     void setSpeed(float speedMultiplier);
     Error setCurrentMultiplier(float currentLimit);
