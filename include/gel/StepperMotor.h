@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include "Core.h"
 
-#define MOTOR_MAX_STATES 12
+#define MOTOR_MAX_NUM_VALUES 12
 
 namespace gel
 {
@@ -16,7 +16,6 @@ struct StepperMotorPins
     uint8_t i02;
     uint8_t i12;
     uint8_t ph2;
-    optional<uint8_t> zeroSensor;
     optional<uint8_t> currentSensorA;
     optional<uint8_t> currentSensorB;
 };
@@ -32,53 +31,61 @@ struct StepperMotorConfig
 class StepperMotor
 {
 public:
-    enum State
+    enum Mode
     {
         Holding,
         FullStepping,
         HalfStepping,
     };
+
 public:
     StepperMotor() { initialized = false; };
     
     gel::Error begin(StepperMotorPins pins, StepperMotorConfig config);
 
-    void stepForward(double numSteps);
-    void stepBackward(double numSteps);
-    double cycleForward();
-    double cycleBackward();
-    
-    void saveZeroPosition() { currentStep = 0.0; };
+    void stepForward(double numSteps, bool blocking = true);
+    void stepBackward(double numSteps, bool blocking = true);
+    double cycleForward(uint32_t numCycles = 1);
+    double cycleBackward(uint32_t numCycles = 1);
 
-    double getPosition() { return currentStep; }
+    bool tick(); // returns true if no work was done, and false otherwise
+    
+    void saveZeroPosition() { position = 0.0; };
+
+    double getPosition() { return position; }
     void setSpeed(float speedMultiplier);
+    float getSpeed() { return speedMultiplier; };
     Error setCurrentMultiplier(float currentLimit);
 
-    void setState(State state, float currentMultiplier = 1.0);
+    void setMode(Mode mode, float currentMultiplier = 1.0);
 
 private:
+    double getDivisionalSpeedMultiplier();
+    double getDivisionalStepDelay();
+    double getStepIncrement();
     void stepDivisional(bool backwards = false);
-    void stepN(double numSteps, bool backwards = false);
+    void stepN(double numSteps, bool backwards = false, bool blocking = true);
     void updateIO();
-    void setStateArrays(const bool directionStatesA[], const bool directionStatesB[], const float currentStatesA[], const float currentStatesB[], uint8_t numStates);
+    void setValueArrays(const bool directionValuesA[], const bool directionValuesB[], const float currentValuesA[], const float currentValuesB[], uint8_t numValues);
 
 private:
     bool initialized;
     StepperMotorPins pins;
     StepperMotorConfig config;
     
-    uint8_t numStates;
-    uint8_t stateIdx;    
-    bool directionStatesA[MOTOR_MAX_STATES];
-    bool directionStatesB[MOTOR_MAX_STATES];
-    float currentStatesA[MOTOR_MAX_STATES];
-    float currentStatesB[MOTOR_MAX_STATES];
-    State state;
+    Mode mode;
+    uint8_t numValues;
+    uint8_t valueIdx;    
+    bool directionValuesA[MOTOR_MAX_NUM_VALUES];
+    bool directionValuesB[MOTOR_MAX_NUM_VALUES];
+    float currentValuesA[MOTOR_MAX_NUM_VALUES];
+    float currentValuesB[MOTOR_MAX_NUM_VALUES];
     
     float currentMultiplier = 0.0;
     float speedMultiplier = 1.0;
-    uint32_t prevStepTime; // in microseconds
-    double currentStep = 0.0;
+    uint32_t prevStepTime = 0.0; // in microseconds
+    double position = 0.0;
+    int32_t divisionalStepsLeft = 0;
 };
 
 

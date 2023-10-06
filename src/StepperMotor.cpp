@@ -4,25 +4,25 @@
 namespace gel
 {
 
-// NB: The maximum number of states must be reflected in MOTOR_MAX_STATES.
+// NB: The maximum number of state must be reflected in MOTOR_MAX_STATES.
 
-// Full step sequence
-const float fullStepCurrentStatesA[] =   {1.0, 1.0, 1.0, 1.0}; // output to I0 and I1 current (phase A)
-const float fullStepCurrentStatesB[] =   {1.0, 1.0, 1.0, 1.0}; // output to I0 and I1 current (phase B)
-const bool fullStepDirectionStatesA[] =  {1,   0,   0,   1  }; // output to direction (phase A)
-const bool fullStepDirectionStatesB[] =  {1,   1,   0,   0  }; // output to direction (phase B)
+// Full step mode
+const float fullStepCurrentModesA[] =   {1.0, 1.0, 1.0, 1.0}; // output to I0 and I1 current (phase A)
+const float fullStepCurrentModesB[] =   {1.0, 1.0, 1.0, 1.0}; // output to I0 and I1 current (phase B)
+const bool fullStepDirectionValuesA[] =  {1,   0,   0,   1  }; // output to direction (phase A)
+const bool fullStepDirectionValuesB[] =  {1,   1,   0,   0  }; // output to direction (phase B)
 
-// Half-stepping states
-const float halfStepCurrentStatesA[] =   {3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0}; // output to I0 and I1 current (phase A)
-const float halfStepCurrentStatesB[] =   {3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0}; // output to I0 and I1 current (phase B)
-const bool halfStepDirectionStatesA[] =  {0,       0,       0,       1,       1,       1,       1,       0      }; // output to direction (phase A)
-const bool halfStepDirectionStatesB[] =  {1,       0,       0,       0,       0,       1,       1,       1      }; // output to direction (phase B)
+// Half-stepping mode
+const float halfStepCurrentModesA[] =   {3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0}; // output to I0 and I1 current (phase A)
+const float halfStepCurrentModesB[] =   {3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0, 3.0/3.0, 1.0/3.0, 3.0/3.0, 3.0/3.0}; // output to I0 and I1 current (phase B)
+const bool halfStepDirectionValuesA[] =  {0,       0,       0,       1,       1,       1,       1,       0      }; // output to direction (phase A)
+const bool halfStepDirectionValuesB[] =  {1,       0,       0,       0,       0,       1,       1,       1      }; // output to direction (phase B)
 
-// Holding states
-const float holdingCurrentStatesA[] =    {1.0};
-const float holdingCurrentStatesB[] =    {1.0};
-const bool holdingDirectionStatesA[] =   {0}; // output to direction (phase A)
-const bool holdingDirectionStatesB[] =   {1}; // output to direction (phase B)
+// Holding mode
+const float holdingCurrentModesA[] =    {1.0};
+const float holdingCurrentModesB[] =    {1.0};
+const bool holdingDirectionValuesA[] =   {0}; // output to direction (phase A)
+const bool holdingDirectionValuesB[] =   {1}; // output to direction (phase B)
 
 gel::Error StepperMotor::begin(StepperMotorPins pins, StepperMotorConfig config)
 {
@@ -30,7 +30,7 @@ gel::Error StepperMotor::begin(StepperMotorPins pins, StepperMotorConfig config)
     this->initialized = true;
     this->pins = pins;
     this->config = config;
-    this->stateIdx = 0;
+    this->valueIdx = 0;
 
     // Set the various pins to output
     pinMode (this->pins.i01, OUTPUT);
@@ -40,10 +40,34 @@ gel::Error StepperMotor::begin(StepperMotorPins pins, StepperMotorConfig config)
     pinMode (this->pins.i12, OUTPUT);
     pinMode (this->pins.ph2, OUTPUT);
 
-    // Enable a pseudo-holding state (at 0.0 current)
-    setState(Holding, 0.0);
+    // Enable a pseudo-holding mode (at 0.0 current)
+    setMode(Holding, 0.0);
     
     return Error::None;
+}
+
+double StepperMotor::getDivisionalSpeedMultiplier()
+{
+    if (mode == FullStepping)
+        return speedMultiplier;
+    else if (mode == HalfStepping)
+        return speedMultiplier * 2.0;
+
+    return speedMultiplier;
+}
+
+double StepperMotor::getDivisionalStepDelay()
+{
+    return config.stepDelay / getDivisionalSpeedMultiplier();
+}
+
+double StepperMotor::getStepIncrement()
+{
+    if (mode == FullStepping)
+        return 1.0;
+    else if (mode == HalfStepping)
+        return 0.5;
+    return 1.0;
 }
 
 void StepperMotor::setSpeed(float speedMultiplier)
@@ -59,93 +83,133 @@ void StepperMotor::stepDivisional(bool backwards)
 
     if (!downwards)
     {
-        stateIdx++;
-        if (stateIdx == numStates)
-            stateIdx = 0;
+        valueIdx++;
+        if (valueIdx == numValues)
+            valueIdx = 0;
     }
     else
     {
-        if (stateIdx == 0)
-            stateIdx = numStates - 1;
+        if (valueIdx == 0)
+            valueIdx = numValues - 1;
         else
-            stateIdx--;
+            valueIdx--;
 
     }
     
     updateIO();
 }
 
-void StepperMotor::stepN(double numSteps, bool backwards)
+void StepperMotor::stepN(double numSteps, bool backwards, bool blocking)
 {       
     uint32_t numDivisionalSteps = 0;
     double numFullSteps = 0.0;
-    float divisionSpeedMultiplier = 1.0;
+    float divisionSpeedMultiplier = getDivisionalSpeedMultiplier();
 
-    if (state == FullStepping)
+    if (mode == FullStepping)
     {
         round(numSteps);
         numDivisionalSteps = (uint32_t)numSteps;
-        divisionSpeedMultiplier = speedMultiplier;
         numFullSteps = numDivisionalSteps;
     }
-    else if (state == HalfStepping)
+    else if (mode == HalfStepping)
     {
         numSteps *= 2.0;
         round(numSteps);
         numDivisionalSteps = numSteps;
         numFullSteps = numDivisionalSteps / 2.0;
-        DEBUG_VARIABLE(numFullSteps);
-        divisionSpeedMultiplier = speedMultiplier * 2.0;
     }
 
-    if (!backwards)
-        this->currentStep += numFullSteps;
+    if (backwards)
+        this->position -= numFullSteps;    
     else
-        this->currentStep -= numFullSteps;    
-
-    for (uint32_t i = 0; i < numDivisionalSteps; i++)
+        this->position += numFullSteps;
+    if (blocking)
     {
-        stepDivisional(backwards);
-        delayMicroseconds(this->config.stepDelay / divisionSpeedMultiplier);
+
+        for (uint32_t i = 0; i < numDivisionalSteps; i++)
+        {
+            stepDivisional(backwards);
+            delayMicroseconds(this->config.stepDelay / divisionSpeedMultiplier);
+        }
+    }
+    else
+    {
+        if (backwards)
+            this->divisionalStepsLeft -= numDivisionalSteps;
+        else
+            this->divisionalStepsLeft += numDivisionalSteps;
+
+        tick();
     }
 }
 
-void StepperMotor::stepForward(double numSteps)
+void StepperMotor::stepForward(double numSteps, bool blocking)
 {
     if (numSteps < 0.0)
-        stepN(-numSteps, true);
+        stepN(-numSteps, true, blocking);
     else
-        stepN(numSteps, false);
+        stepN(numSteps, false, blocking);
 }
 
-void StepperMotor::stepBackward(double numSteps)
+void StepperMotor::stepBackward(double numSteps, bool blocking)
 {
     if (numSteps < 0.0)
-        stepN(-numSteps, false);
+        stepN(-numSteps, false, blocking);
     else
-        stepN(numSteps, true);
+        stepN(numSteps, true, blocking);
 }
 
-double StepperMotor::cycleForward()
+double StepperMotor::cycleForward(uint32_t numCycles)
 {
-    stepN(4.0, false);
-    return 4.0;
+    double numSteps = 0.0;
+    for (uint32_t i = 0; i < numCycles; i++)
+    {
+        stepN(4.0, false);
+        numSteps += 4.0;
+    }
+    return numSteps;
 }
 
-double StepperMotor::cycleBackward()
+double StepperMotor::cycleBackward(uint32_t numCycles)
 {
-    stepN(4.0, true);
-    return 4.0;
+    double numSteps = 0.0;
+    for (uint32_t i = 0; i < numCycles; i++)
+    {
+        stepN(4.0, true);
+        numSteps += 4.0;
+    }
+    return numSteps;
+}
+
+bool StepperMotor::tick()
+{
+    if (abs(divisionalStepsLeft) == 0)
+        return false;
+
+    bool busyWithDelay = (micros() - prevStepTime) < getDivisionalStepDelay();
+
+    if (busyWithDelay)
+        return true;
+     
+    bool backwards = divisionalStepsLeft < 0;
+
+    if (backwards)
+        divisionalStepsLeft += 1;
+    else
+        divisionalStepsLeft -= 1;
+
+    stepDivisional(backwards);
+    return true;
 }
 
 void StepperMotor::updateIO()
 {
     uint8_t maxCurrentLevel = config.numCurrentLevels - 1;
     
-    uint8_t currentA = currentStatesA[stateIdx] * currentMultiplier * maxCurrentLevel;
-    uint8_t currentB = currentStatesB[stateIdx] * currentMultiplier * maxCurrentLevel;
-    uint8_t directionA = directionStatesA[stateIdx];
-    uint8_t directionB = directionStatesB[stateIdx];
+    uint8_t currentA = currentValuesA[valueIdx] * currentMultiplier * maxCurrentLevel;
+    uint8_t currentB = currentValuesB[valueIdx] * currentMultiplier * maxCurrentLevel;
+    uint8_t directionA = directionValuesA[valueIdx];
+    uint8_t directionB = directionValuesB[valueIdx];
 
     if (config.activeLow)
     {
@@ -161,34 +225,34 @@ void StepperMotor::updateIO()
     digitalWrite(pins.ph2, directionB);
 }
 
-void StepperMotor::setState(State state, float currentMultiplier)
+void StepperMotor::setMode(Mode mode, float currentMultiplier)
 {
-    switch (state)
+    switch (mode)
     {
     case Holding:
-        setStateArrays(holdingDirectionStatesA,
-                       holdingDirectionStatesB,
-                       holdingCurrentStatesA,
-                       holdingCurrentStatesB,
-                       NUM_ELEMS(holdingDirectionStatesA)
+        setValueArrays(holdingDirectionValuesA,
+                       holdingDirectionValuesB,
+                       holdingCurrentModesA,
+                       holdingCurrentModesB,
+                       NUM_ELEMS(holdingDirectionValuesA)
                        );
         break;
     
     case HalfStepping:
-        setStateArrays(halfStepDirectionStatesA,
-                       halfStepDirectionStatesB,
-                       halfStepCurrentStatesA,
-                       halfStepCurrentStatesB,
-                       NUM_ELEMS(halfStepDirectionStatesA)
+        setValueArrays(halfStepDirectionValuesA,
+                       halfStepDirectionValuesB,
+                       halfStepCurrentModesA,
+                       halfStepCurrentModesB,
+                       NUM_ELEMS(halfStepDirectionValuesA)
                        );
         break;
     
     case FullStepping:
-        setStateArrays(fullStepDirectionStatesA,
-                       fullStepDirectionStatesB,
-                       fullStepCurrentStatesA,
-                       fullStepCurrentStatesB,
-                       NUM_ELEMS(fullStepDirectionStatesA)
+        setValueArrays(fullStepDirectionValuesA,
+                       fullStepDirectionValuesB,
+                       fullStepCurrentModesA,
+                       fullStepCurrentModesB,
+                       NUM_ELEMS(fullStepDirectionValuesA)
                        );
         break;
 
@@ -196,21 +260,21 @@ void StepperMotor::setState(State state, float currentMultiplier)
         break;
     }
 
-    this->state = state;
-    stateIdx = 0;
+    this->mode = mode;
+    valueIdx = 0;
     setCurrentMultiplier(currentMultiplier);
     updateIO();
 }
 
-void StepperMotor::setStateArrays(const bool directionStatesA[], const bool directionStatesB[], const float currentStatesA[], const float currentStatesB[], uint8_t numStates)
+void StepperMotor::setValueArrays(const bool directionValuesA[], const bool directionValuesB[], const float currentValuesA[], const float currentValuesB[], uint8_t numValues)
 {
-    this->state = state;
+    this->mode = mode;
     
-    this->numStates = numStates;
-    memcpy (this->directionStatesA, directionStatesA, sizeof (directionStatesA[0]) * numStates);
-    memcpy (this->directionStatesB, directionStatesB, sizeof (directionStatesB[0]) * numStates);
-    memcpy (this->currentStatesA, currentStatesA, sizeof (currentStatesA[0]) * numStates);
-    memcpy (this->currentStatesB, currentStatesB, sizeof (currentStatesB[0]) * numStates);
+    this->numValues = numValues;
+    memcpy (this->directionValuesA, directionValuesA, sizeof (directionValuesA[0]) * numValues);
+    memcpy (this->directionValuesB, directionValuesB, sizeof (directionValuesB[0]) * numValues);
+    memcpy (this->currentValuesA, currentValuesA, sizeof (currentValuesA[0]) * numValues);
+    memcpy (this->currentValuesB, currentValuesB, sizeof (currentValuesB[0]) * numValues);
 }
 
 Error StepperMotor::setCurrentMultiplier(float currentMultiplier)

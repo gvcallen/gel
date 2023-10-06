@@ -9,6 +9,7 @@ namespace gel
 Error Imu::begin(ImuPins pins)
 {
     return Error::None;
+    // mpu.useSPI()
     // if (!mpu.init())
     // {
         // return Error::Uninitialized;
