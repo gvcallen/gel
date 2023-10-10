@@ -107,14 +107,14 @@ void StepperMotor::stepN(double numSteps, bool backwards, bool blocking)
 
     if (mode == FullStepping)
     {
-        round(numSteps);
+        numSteps = round(numSteps);
         numDivisionalSteps = (uint32_t)numSteps;
         numFullSteps = numDivisionalSteps;
     }
     else if (mode == HalfStepping)
     {
         numSteps *= 2.0;
-        round(numSteps);
+        numSteps = round(numSteps);
         numDivisionalSteps = numSteps;
         numFullSteps = numDivisionalSteps / 2.0;
     }

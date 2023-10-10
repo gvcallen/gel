@@ -24,18 +24,20 @@
     "flags":
       [
         "-ISource/include",
-        "-ISource/src"
+        "-ISource/src",
+        "-ISource/LoRaLib/src",
+        "-I LoRaLib/src"
       ]
   },
   "dependencies":
   {
     "wollewald/MPU9250_WE": "^1.2.7",
     "mikalhart/TinyGPSPlus": "*",
-    "jgromes/RadioLib": "^6.2.0",
     "etlcpp/Embedded Template Library": "^20.38.2",
     "sandeepmistry/LoRa": "^0.8.0",
     "SPI": "*",
     "Wire": "*",
-    "EEPROM": "*"
+    "EEPROM": "*",
+    "jgromes/RadioLib": "^6.2.0"
   }
 }

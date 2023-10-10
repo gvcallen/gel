@@ -2,12 +2,12 @@
 
 #include <Arduino.h>
 
-#include "Error.h"
-#include "Math.h"
-
 #ifdef GEL_NO_STL
 #define ETL_NO_STL
 #endif
+
+#include "Error.h"
+#include "Math.h"
 
 #include <etl/optional.h>
 #include <etl/span.h>

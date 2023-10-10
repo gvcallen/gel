@@ -1,3 +1,5 @@
+#pragma once
+
 #include <MPU9250_WE.h>
 #include <SPI.h>
 

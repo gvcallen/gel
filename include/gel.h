@@ -5,3 +5,4 @@
 #include "gel/StepperMotor.h"
 #include "gel/Radio.h"
 #include "gel/Link.h"
+#include "gel/GroundStation.h"

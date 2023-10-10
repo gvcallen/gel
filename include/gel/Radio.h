@@ -2,10 +2,17 @@
 
 #include <Arduino.h>
 
-#ifdef GEL_USE_LORALIB
+#if defined(GEL_USE_LORASANDEEP)
 #include <LoRa.h>
+
+#elif defined(GEL_USE_LORALIB)
+
+#include <LoRaLib.h>
+
 #else
+
 #include <RadioLib.h>
+
 #endif
 
 #include "gel/Core.h"
@@ -24,9 +31,9 @@ enum class ModulationType
 
 struct LoRaConfig
 {
-    uint8_t spreadingFactor = 9;
-    uint8_t codeRate = 7;
-    float bandwidth = 125.0e3;
+    uint8_t spreadingFactor = 8;
+    uint8_t codeRate = 3;                                   // 1, 2, 3 or 4
+    float bandwidth = 500.0e3;
     bool implicitHeader = false;
 };
 
@@ -50,10 +57,10 @@ struct RadioConfig
     float frequency = 434.0e6;
     uint32_t syncWord = 0x12;
     uint8_t outputPower = 10;                               // 2 to 17 dBm
-    uint8_t preambleLength = 10;                            // 6 to 65535
-    optional<size_t> payloadLength = nullopt;               // Must be specified for "fixed length" modes
+    uint8_t preambleLength = 8;                             // 6 to 65535
+    optional<size_t> payloadLength = 255;                   // Must be specified for "fixed length" modes
     ModulationType modType = ModulationType::LoRa;
-    ModulationConfig modConfig{};
+    ModulationConfig modConfig{LoRaConfig{}};
 };
 
 struct RadioPins
@@ -96,16 +103,21 @@ public:
 
     // Read data available in the registers
     expected<String, Error> readData();
+    Error readData(span<uint8_t> data);
     size_t available();
 
     // Get information about the system
-    float getRssi();
+    float getRssi(bool ofLastPacket = true);
+    float getSNR();
+
     State getState() { return currentState; }
     State getPrevState() { return prevState; }
     // uint32_t getTimeOnAir(size_t payloadLength = 0);
 
     // Change settings
     Error setPreambleLength(size_t length);
+
+    RadioConfig& getConfig() {return config; }
 
 private:
     static void callback0(void) { Radio::get(0)->callback(); }
@@ -136,7 +148,7 @@ private:
     volatile State currentState = Idle;
     State prevState = Idle;
 
-    #ifdef GEL_USE_LORALIB
+    #ifdef GEL_USE_LORASANDEEP
     LoRaClass& radio = LoRa;
     #else
     SX1278 radio {nullptr};

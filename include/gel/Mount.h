@@ -1,3 +1,5 @@
+#pragma once
+
 #include "gel/Core.h"
 #include "gel/StepperMotor.h"
 
@@ -13,14 +15,18 @@ struct MountPins
 
 struct MountConfig
 {
-    double azimuthalRevolutionNumSteps = 200.0; 
-    double elevationRevolutionNumSteps = 200.0; 
+    float azimuthalRevolutionNumSteps = 200.0; 
+    float elevationRevolutionNumSteps = 200.0; 
     float azelRatio = 1.0; // The equivalent amount the el gear has to turn to correct the elevation caused by the az gear. To correct elevation due to turning azimuth, in el:az
-    gel::Bounds1d elevationAngleBounds = {0.0, 2.0*PI}; // Elevation angle when el is at zero steps, and which el cannot go past
+    gel::Bounds1f elevationAngleBounds = {0.0, 2.0*PI}; // Elevation angle when el is at zero steps, and which el cannot go past
     bool slidingCoax = false; // Whether or not the mount's coax can "slide" to prevent twisting. If false, the mount will not rotate the azimuthal a delta of +/- ~maxNonSlidingRevolutions~ revolutions.
-    uint8_t maxNonSlidingRevolutions = 1;
+    float maxNonSlidingRevolutions = 2.5;
+
+    bool reverseAzimuthalDirection = false;
+    bool reverseElevationDirection = false;
 };
 
+// NB - entire class is in radians
 class Mount
 {
     enum CalibrationMethod
@@ -34,34 +40,38 @@ public:
     Error begin(MountPins pins, MountConfig config);
     Error calibrate(CalibrationMethod method = ElevationControlled);
     
-    double getElevationAngle();
-    double getAzimuthalAngle();
-    Error setElevationAngle(double angle);
-    Error setAzimuthalAngle(double angle);
+    Error setElevationAngle(float angle);
+    Error setAzimuthalAngle(float angle);
+    Error setAzimuthElevation(float azimuthal, float elevation);
+    Error setBoresight(Vec3f& boresight);
+    Error setConical(Vec3f& boresight, float radiusAngle, float scanAngle);
     
-    Error setSphericalPosition(double azimuthal, double elevation);
-    Error setConicalPosition(Vec2d& sphericalCentreAngle, double radius, double scanAngle);
+    float getElevationAngle();
+    float getAzimuthalAngle();
+    Vec3f getBoresight();
 
     Error returnToStart();
+
+    MountConfig& getConfig() {return config; };
 
 private:
 
     void calibrateByControlledElevation();
-    Error stepAzimuthalAndElevation(double azSteps, double elSteps, bool simultaneous = true);
-    void stepAzimuthalAndElevationSimulatenous(double azSteps, double elSteps, bool elFirst = false);
-    void stepAzimuthalAndElevationSequential(double azSteps, double elSteps, bool elFirst = false);
+    Error stepAzimuthalAndElevation(float azSteps, float elSteps, bool simultaneous = true);
+    void stepAzimuthalAndElevationSimulatenous(float azSteps, float elSteps, bool elFirst = false);
+    void stepAzimuthalAndElevationSequential(float azSteps, float elSteps, bool elFirst = false);
 
-    gel::Bounds1d getElevationPositionBounds();
+    gel::Bounds1f getElevationPositionBounds();
     bool isElevationCloserToStart();
     
-    double convertAzimuthalAngleToPosition(double angle, bool closest = true, bool backwards = false);
-    double convertAzimuthalPositionToAngle(double position);
-    double convertElevationDeltaAngleToDeltaPosition(double deltaAngle);
+    float convertAzimuthalAngleToPosition(float angle, bool closest = true, bool backwards = false);
+    float convertAzimuthalPositionToAngle(float position);
+    float convertElevationDeltaAngleToDeltaPosition(float deltaAngle);
     
-    double getNewAzimuthalPositionFromAngle(double angle);
+    float getNewAzimuthalPositionFromAngle(float angle);
 
 private:
-    static constexpr double HOLDING_CURRENT = 2.0/3.0, MOVING_CURRENT = 2.0/3.0; 
+    static constexpr float HOLDING_CURRENT = 2.0/3.0, MOVING_CURRENT = 2.0/3.0; 
 
 private:
     bool initialized = false, calibrated = false;
