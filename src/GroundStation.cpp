@@ -1,5 +1,8 @@
 #include "gel/Core.h"
 #include "gel/GroundStation.h"
+#include "gel/SpaceTime.h"
+
+#include <SoftwareSerial.h>
 
 namespace gel
 {
@@ -17,32 +20,124 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
 {
     Error err;
 
-    this->antennaConfig = config.antennaConfig;
+    this->trackingConfig = config.trackingConfig;
 
-    // MOUNT SETUP
-    // if (err = mount.begin(pins.mount, config.mount))
-        // return err;
-    // if (err = mount.calibrate())
-        // return err;
+    if (err = mount.begin(pins.mount, config.mount))
+        return err;
 
-    // RADIO SETUP
     if (err = radio.begin(pins.radio, config.radio))
         return err;
 
-
-    // LINK SETUP
     if (err = link.begin(radio, config.link))
         return err;
 
+    if (err = gps.begin(pins.gps))
+        return err;
+
     link.setTelemetryCallback(telemetryReceived);
+    lastPositionUpdate = getCurrentSecondsSinceEpoch();
 
     return Error::None;
 }
 
 Error GroundStation::update()
 {   
-    // return Error::None;
+    gel::Error err;
+    
+    if (err = updatePosition())
+        return err;
+    
     return link.update();
+}
+
+Error GroundStation::updatePosition()
+{
+    uint64_t currentEpochSeconds = getCurrentSecondsSinceEpoch();
+    if ((currentEpochSeconds - lastPositionUpdate) < trackingConfig.updateInterval)
+        return Error::None;
+    
+    if (trackingFlags & TrackingFlags::EstimatedLocation)
+        updatePositionEstimatedLocation(currentEpochSeconds);
+    
+    return Error::None;
+}
+
+Error GroundStation::updatePositionEstimatedLocation(uint64_t currentEpochSeconds)
+{
+    if (currentEpochSeconds > currentEstimatedLocation.secondsSinceEpoch)
+    {
+        pointAt(currentEstimatedLocation.location);
+    }
+    else
+    {
+        uint64_t location1Seconds = prevEstimatedLocation.secondsSinceEpoch;
+        uint64_t location2Seconds = currentEstimatedLocation.secondsSinceEpoch;
+
+        float weight = (float)(currentEpochSeconds - location1Seconds) / (float)(location2Seconds - location1Seconds);
+        pointBetween(prevEstimatedLocation.location, currentEstimatedLocation.location, weight);
+    }
+
+    return Error::None;
+}
+
+Error GroundStation::pointAt(const GeoLocation& location)
+{
+    return pointAtCartesian(location.toCartesian(this->projectionOrigin));
+}
+
+// Weight of zero is all the way to location1
+Error GroundStation::pointBetween(const GeoLocation& location1, const GeoLocation& location2, float weight)
+{
+    
+    auto pt1 = location1.toCartesian(this->projectionOrigin);
+    auto pt2 = location2.toCartesian(this->projectionOrigin);
+    auto ptBetween = pt1 * (1.0 - weight) + pt2 * (weight);
+
+    return pointAtCartesian(ptBetween);
+}
+
+Error GroundStation::pointAtCartesian(const Vec3f& pt)
+{
+    auto geoLocation = gps.getGeoLocation();
+    if (!geoLocation.has_value())
+        return Error::Internal;
+    auto ptGs = geoLocation.value().toCartesian(this->projectionOrigin);
+    gel::Vec3f ptVec = pt - ptGs;
+    auto boresight = normalize(ptVec);
+
+    return mount.setBoresight(boresight);
+}
+
+Error GroundStation::addEstimatedLocation(const GeoInstant& estimatedLocation)
+{
+    if (!(trackingFlags & TrackingFlags::EstimatedLocation))
+    {
+        prevEstimatedLocation = currentEstimatedLocation = estimatedLocation;
+    }
+    else
+    {
+        if (estimatedLocation.secondsSinceEpoch < currentEstimatedLocation.secondsSinceEpoch)
+            return Error::Outdated;
+        
+        prevEstimatedLocation = currentEstimatedLocation;
+        currentEstimatedLocation = estimatedLocation;
+    }
+    
+    this->trackingFlags |= TrackingFlags::EstimatedLocation;
+    return Error::None;
+}
+
+Error GroundStation::addKnownLocation(const GeoInstant& knownLocation)
+{
+    this->trackingFlags |= TrackingFlags::KnownLocation;
+    this->knownLocation = knownLocation;
+
+    return Error::None;
+}
+
+uint64_t GroundStation::getCurrentSecondsSinceEpoch()
+{
+    return gps.getCurrentSecondsSinceEpoch();
 }
 
 Error GroundStation::scanConical(Vec3f estimatedDirection, float conicalAngle)
@@ -66,7 +161,7 @@ Error GroundStation::scanConical(Vec3f estimatedDirection, float conicalAngle)
 
 Error GroundStation::scanBF()
 {
-    float elevationStep = antennaConfig.estimatedBeamwidth / antennaConfig.numBeamwidthScanSegments;
+    float elevationStep = trackingConfig.estimatedBeamwidth / trackingConfig.numBeamwidthScanSegments;
     float elevationAngle = mount.getConfig().elevationAngleBounds.min;
 
     mount.setAzimuthElevation(0.0, elevationAngle);
@@ -101,7 +196,7 @@ Error GroundStation::scanSegment(float& bestRssi, float& bestAzimuth, float elev
 {
     bestRssi = radio.getRssi(false);
     bestAzimuth = mount.getAzimuthalAngle();
-    uint32_t numSamples = antennaConfig.numAzimuthScanSamples;
+    uint32_t numSamples = trackingConfig.numAzimuthScanSamples;
     
     float azStep = GEL_PI_TIMES_2 / numSamples;
     if (scanAzBackwards)

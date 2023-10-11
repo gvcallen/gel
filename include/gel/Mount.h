@@ -45,6 +45,8 @@ public:
     Error setAzimuthElevation(float azimuthal, float elevation);
     Error setBoresight(Vec3f& boresight);
     Error setConical(Vec3f& boresight, float radiusAngle, float scanAngle);
+
+    void setRotationMatrix(Mat3f& mat) {this->rotationMatrix = mat; };
     
     float getElevationAngle();
     float getAzimuthalAngle();
@@ -79,6 +81,8 @@ private:
 
     StepperMotor elevationMotor, azimuthalMotor;
     uint8_t azimuthalZeroSensorPin;
+
+    Mat3f rotationMatrix;
 };
 
 } // namespace gel

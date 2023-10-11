@@ -14,6 +14,16 @@ Vec3f cross(Vec3f& v1, Vec3f& v2)
     return result;
 }
 
+float length(Vec3f& v)
+{
+    return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+}
+
+Vec3f normalize(Vec3f& v)
+{
+    return v / length(v);
+}
+
 void cartesianToAzimuthElevation(float* az, float* el, float* r, Vec3f& pt)
 {
     float XsqPlusYsq = pt.x*pt.x + pt.y*pt.y;

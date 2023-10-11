@@ -2,6 +2,8 @@
 
 #include "math.h"
 
+#include <BasicLinearAlgebra.h>
+
 #define GEL_PI_OVER_180 (M_PI / 180.0)
 #define GEL_180_OVER_PI (180.0 / M_PI)
 #define GEL_PI_TIMES_2 (2.0 * M_PI)
@@ -18,6 +20,12 @@ struct Bounds1
     Real min;
     Real max;
 };
+
+template <typename Real, size_t rows, size_t cols>
+struct Matrix
+{
+    Real data[rows * col];
+}
 
 template <typename Real>
 struct Vec3
@@ -145,8 +153,11 @@ Vec3<Real> & Vec3<Real>::operator/=(Real const divisor)
 
 using Bounds1f = Bounds1<float>;
 using Vec3f = Vec3<float>;
+using Mat3f = BLA::Matrix<3, 3, float>;
 
 Vec3f cross(Vec3f& v1, Vec3f& v2);
+float length(Vec3f& v);
+Vec3f normalize(Vec3f& v);
 
 float normalizeAngle2PI(float x);
 

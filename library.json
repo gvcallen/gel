@@ -38,6 +38,7 @@
     "SPI": "*",
     "Wire": "*",
     "EEPROM": "*",
-    "jgromes/RadioLib": "^6.2.0"
+    "jgromes/RadioLib": "^6.2.0",
+    "tomstewart89/BasicLinearAlgebra": "^4.1"
   }
 }

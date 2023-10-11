@@ -1,4 +1,6 @@
 #include "gel/Core.h"
+#include "gel/Error.h"
+#include "gel/Math.h"
 #include "gel/Gps.h"
 #include "gel/Imu.h"
 #include "gel/Mount.h"
@@ -6,3 +8,4 @@
 #include "gel/Radio.h"
 #include "gel/Link.h"
 #include "gel/GroundStation.h"
+#include "gel/SpaceTime.h"
