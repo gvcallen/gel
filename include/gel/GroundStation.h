@@ -53,6 +53,8 @@ public:
     Radio& getRadio() { return radio; }
     Mount& getMount() { return mount; }
 
+    Error calibrate() {mount.calibrate(); return Error::None; };
+
     Error addEstimatedLocation(const GeoInstant& estimatedLocation);
     Error addKnownLocation(const GeoInstant& knownLocation);
     Error pointAt(const GeoLocation& location);

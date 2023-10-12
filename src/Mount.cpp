@@ -46,8 +46,9 @@ Error Mount::calibrate(CalibrationMethod method)
 
 void Mount::calibrateByControlledElevation()
 {
-    // For this calibration, it is assumed that the ground station is stowed such that the elevation axis is "near zero".
+    // For this calibration, it is assumed that the ground station is stowed such that the elevation axis is resting (either at min or max angle).
     // Then, the azimuthal axis is spun forwards such the elevation axis locks fully down and that zero-sensor is at zero.
+    // Finally, the elevation axis is moved to the zero location, either by moving it slightly away from the end, or to the other side if ~calibrateElevationNearMax~ is true.
 
     elevationMotor.setMode(StepperMotor::Mode::HalfStepping, 0.0);
     azimuthalMotor.setMode(StepperMotor::Mode::HalfStepping, MOVING_CURRENT);
@@ -72,7 +73,17 @@ void Mount::calibrateByControlledElevation()
     azimuthalMotor.setSpeed(1.0);
 
     elevationMotor.setMode(StepperMotor::Mode::HalfStepping, MOVING_CURRENT);
-    elevationMotor.cycleForward(1);
+
+    if (!config.calibrateElevationNearMax)
+    {
+        elevationMotor.cycleForward(1);
+    }
+    else
+    {
+        float elSteps = convertElevationDeltaAngleToDeltaPosition(config.elevationAngleBounds.max - config.elevationAngleBounds.min);
+        Serial.println("Stepping back " + String(elSteps) + "Steps");
+        elevationMotor.stepBackward(elSteps);
+    }
     
     azimuthalMotor.saveZeroPosition();
     elevationMotor.saveZeroPosition();

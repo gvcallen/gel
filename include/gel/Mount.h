@@ -17,13 +17,13 @@ struct MountConfig
 {
     float azimuthalRevolutionNumSteps = 200.0; 
     float elevationRevolutionNumSteps = 200.0; 
-    float azelRatio = 1.0; // The equivalent amount the el gear has to turn to correct the elevation caused by the az gear. To correct elevation due to turning azimuth, in el:az
-    gel::Bounds1f elevationAngleBounds = {0.0, 2.0*PI}; // Elevation angle when el is at zero steps, and which el cannot go past
-    bool slidingCoax = false; // Whether or not the mount's coax can "slide" to prevent twisting. If false, the mount will not rotate the azimuthal a delta of +/- ~maxNonSlidingRevolutions~ revolutions.
+    float azelRatio = 1.0;                                  // The equivalent amount the el gear has to turn to correct the elevation caused by the az gear. To correct elevation due to turning azimuth, in el:az
+    gel::Bounds1f elevationAngleBounds = {0.0, 2.0*PI};     // Elevation angle when el is at zero steps, and which el cannot go past
+    bool slidingCoax = false;                               // Whether or not the mount's coax can "slide" to prevent twisting. If false, the mount will not rotate the azimuthal a delta of +/- ~maxNonSlidingRevolutions~ revolutions.
     float maxNonSlidingRevolutions = 2.5;
-
-    bool reverseAzimuthalDirection = false;
-    bool reverseElevationDirection = false;
+    bool reverseAzimuthalDirection = false;                 // Specifies that "forward" should be the opposite direction for the azimuthal motor.
+    bool reverseElevationDirection = false;                 // Specifies that "forward" should be the opposite direction for the elevation motor. Not that "min" and "max" angles are with respect to this newly specified direction.
+    bool calibrateElevationNearMax = false;                 // Used for the "elevation controlled" calibration method. If true, it is assumed that the mount is resting at the "max" elevation angle when calibration starts.
 };
 
 // NB - entire class is in radians
