@@ -39,6 +39,7 @@
     "Wire": "*",
     "EEPROM": "*",
     "jgromes/RadioLib": "^6.2.0",
-    "tomstewart89/BasicLinearAlgebra": "^4.1"
+    "tomstewart89/BasicLinearAlgebra": "^4.1",
+    "paulstoffregen/Time": "^1.6.1"
   }
 }

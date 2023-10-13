@@ -12,7 +12,7 @@ struct ImuPins
 {
     SPIClass* spi;
     uint8_t nss;
-    optional<uint8_t> interrupt;
+    optional<uint8_t> interrupt = nullopt;
 };
 
 class Imu

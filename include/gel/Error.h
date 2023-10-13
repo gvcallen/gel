@@ -24,6 +24,7 @@ struct Error : Printable
         NotImplemented,
         Ignored,
         Outdated,
+        NotInitialized,
     };
 
     Error() = default;

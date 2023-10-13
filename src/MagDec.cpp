@@ -2362,7 +2362,7 @@ static const MagneticDeclinationCorrection magDecCorrections[] =
 
 static const size_t numMagDecCorrections = sizeof(magDecCorrections) / sizeof(MagneticDeclinationCorrection);
 
-expected<float, Error> getMagDev(float lat, float lon, uint16_t year)
+expected<float, Error> getMagneticDeclination(float lat, float lon, uint16_t year)
 {
 	int8_t lati, loni;
 	uint8_t year_end;

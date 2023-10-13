@@ -22,6 +22,29 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
 
     this->trackingConfig = config.trackingConfig;
 
+    if (err = gps.begin(pins.gps))
+        return err;
+
+    unsigned long gpsStartTime = millis(), timeout = 5000;
+    bool gotMagDec = false;
+    while (!gotMagDec && millis() - gpsStartTime < timeout)
+    {
+        gps.update();
+        gotMagDec = gps.getMagneticDeclination().has_value();
+    }
+
+    if (!gotMagDec)
+        return gel::Error::Timeout;
+    
+    float magDec = gps.getMagneticDeclination().value();
+
+    // We want the mount to point east when we set the azimuthal angle to zero.
+    // We therefore offset the 
+    float deltaNorth = config.trackingConfig.magneticNorthDeltaAzAngle + magDec;
+    float deltaEast = deltaNorth - GEL_RADIANS(90.0);
+    config.mount.azimuthalAngleOffset = -deltaEast;
+    config.mount.azimuthalAngleOffset = 0.0;
+
     if (err = mount.begin(pins.mount, config.mount))
         return err;
 
@@ -31,11 +54,8 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
     if (err = link.begin(radio, config.link))
         return err;
 
-    if (err = gps.begin(pins.gps))
-        return err;
-
     link.setTelemetryCallback(telemetryReceived);
-    lastPositionUpdate = getCurrentSecondsSinceEpoch();
+    lastPositionUpdate = millis();
 
     return Error::None;
 }
@@ -46,38 +66,70 @@ Error GroundStation::update()
     
     if (err = updatePosition())
         return err;
+
+    if (err = gps.update())
+        return err;
     
     return link.update();
 }
 
 Error GroundStation::updatePosition()
 {
-    uint64_t currentEpochSeconds = getCurrentSecondsSinceEpoch();
-    if ((currentEpochSeconds - lastPositionUpdate) < trackingConfig.updateInterval)
+    if ((millis() - lastPositionUpdate) < trackingConfig.updateInterval)
         return Error::None;
+
+    lastPositionUpdate = millis();
     
     if (trackingFlags & TrackingFlags::EstimatedLocation)
-        updatePositionEstimatedLocation(currentEpochSeconds);
+        return updatePositionEstimatedLocation();
     
     return Error::None;
 }
 
-Error GroundStation::updatePositionEstimatedLocation(uint64_t currentEpochSeconds)
+Error GroundStation::updatePositionEstimatedLocation()
 {
-    if (currentEpochSeconds > currentEstimatedLocation.secondsSinceEpoch)
+    uint64_t currentEpochSeconds = getCurrentSecondsSinceEpoch();
+    uint64_t location1Seconds = prevEstimatedLocation.secondsSinceEpoch;
+    uint64_t location2Seconds = currentEstimatedLocation.secondsSinceEpoch;
+    if (currentEpochSeconds > location2Seconds || location1Seconds == location2Seconds)
     {
-        pointAt(currentEstimatedLocation.location);
+        return pointAt(currentEstimatedLocation.location);
+    }
+    else if (currentEpochSeconds < location1Seconds)
+    {
+        return pointAt(prevEstimatedLocation.location);
     }
     else
     {
-        uint64_t location1Seconds = prevEstimatedLocation.secondsSinceEpoch;
-        uint64_t location2Seconds = currentEstimatedLocation.secondsSinceEpoch;
-
         float weight = (float)(currentEpochSeconds - location1Seconds) / (float)(location2Seconds - location1Seconds);
-        pointBetween(prevEstimatedLocation.location, currentEstimatedLocation.location, weight);
+        return pointBetween(prevEstimatedLocation.location, currentEstimatedLocation.location, weight);
     }
 
     return Error::None;
+}
+
+Error GroundStation::calibrate()
+{
+    mount.calibrate();
+    delay(1000);
+    mount.setAzimuthalAngle(0.0);
+    delay(1000);
+    mount.setAzimuthalAngle(GEL_RADIANS(-90.0));
+    // delay(1000);
+    // mount.setAzimuthElevation(mount.getConfig().azimuthalAngleOffset, mount.getConfig().elevationAngleBounds.max);
+    return Error::None;
+}
+
+Error GroundStation::returnToStart()
+{
+    trackingFlags = TrackingFlags::None;
+    return mount.returnToStart();
+}
+
+Error GroundStation::returnToStow()
+{
+    trackingFlags = TrackingFlags::None;
+    return mount.returnToStow();
 }
 
 Error GroundStation::pointAt(const GeoLocation& location)
@@ -87,8 +139,7 @@ Error GroundStation::pointAt(const GeoLocation& location)
 
 // Weight of zero is all the way to location1
 Error GroundStation::pointBetween(const GeoLocation& location1, const GeoLocation& location2, float weight)
-{
-    
+{   
     auto pt1 = location1.toCartesian(this->projectionOrigin);
     auto pt2 = location2.toCartesian(this->projectionOrigin);
     auto ptBetween = pt1 * (1.0 - weight) + pt2 * (weight);
@@ -101,9 +152,10 @@ Error GroundStation::pointAtCartesian(const Vec3f& pt)
     auto geoLocation = gps.getGeoLocation();
     if (!geoLocation.has_value())
         return Error::Internal;
+    
     auto ptGs = geoLocation.value().toCartesian(this->projectionOrigin);
-    gel::Vec3f ptVec = pt - ptGs;
-    auto boresight = normalize(ptVec);
+    gel::Vec3f delta = pt - ptGs;
+    auto boresight = normalize(delta);
 
     return mount.setBoresight(boresight);
 }
@@ -113,6 +165,7 @@ Error GroundStation::addEstimatedLocation(const GeoInstant& estimatedLocation)
     if (!(trackingFlags & TrackingFlags::EstimatedLocation))
     {
         prevEstimatedLocation = currentEstimatedLocation = estimatedLocation;
+        this->trackingFlags |= TrackingFlags::EstimatedLocation;
     }
     else
     {
@@ -123,7 +176,6 @@ Error GroundStation::addEstimatedLocation(const GeoInstant& estimatedLocation)
         currentEstimatedLocation = estimatedLocation;
     }
     
-    this->trackingFlags |= TrackingFlags::EstimatedLocation;
     return Error::None;
 }
 
@@ -137,7 +189,7 @@ Error GroundStation::addKnownLocation(const GeoInstant& knownLocation)
 
 uint64_t GroundStation::getCurrentSecondsSinceEpoch()
 {
-    return gps.getCurrentSecondsSinceEpoch();
+    return gps.getCurrentSecondsSinceEpoch().value_or(0);
 }
 
 Error GroundStation::scanConical(Vec3f estimatedDirection, float conicalAngle)

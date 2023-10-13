@@ -7,16 +7,17 @@ namespace gel
 {
 
 Error Mount::begin(MountPins pins, MountConfig config)
-{
-    this->config = config;
-    this->initialized = true;
-    this->azimuthalZeroSensorPin = pins.azimuthalZeroSensor;
-    
+{    
     StepperMotorConfig azimuthalConfig {};
     StepperMotorConfig elevationConfig {};
     
     azimuthalConfig.reverseDirection = config.reverseAzimuthalDirection;
     elevationConfig.reverseDirection = config.reverseElevationDirection;
+
+    // Internally, we take into account ~reverseElevationDirection~ when we store ~azelRatio~
+    // so that we don't have if conditions throughout the code
+    if (config.reverseElevationDirection)
+        config.azelRatio *= -1.0;
 
     if (Error err = azimuthalMotor.begin(pins.azimuthalPins, azimuthalConfig))
         return err;
@@ -24,9 +25,14 @@ Error Mount::begin(MountPins pins, MountConfig config)
         return err;
 
     pinMode(azimuthalZeroSensorPin, INPUT);
-    
+
+    this->config = config;
+    this->initialized = true;
+    this->azimuthalZeroSensorPin = pins.azimuthalZeroSensor;
     this->calibrated = true;
+
     return Error::None;
+
 }
 
 Error Mount::calibrate(CalibrationMethod method)
@@ -81,7 +87,6 @@ void Mount::calibrateByControlledElevation()
     else
     {
         float elSteps = convertElevationDeltaAngleToDeltaPosition(config.elevationAngleBounds.max - config.elevationAngleBounds.min);
-        Serial.println("Stepping back " + String(elSteps) + "Steps");
         elevationMotor.stepBackward(elSteps);
     }
     
@@ -96,12 +101,28 @@ void Mount::calibrateByControlledElevation()
 
 Error Mount::returnToStart()
 {
-    Error err = setAzimuthElevation(0.0, config.elevationAngleBounds.min);
-    if (!err)
-    {
-        azimuthalMotor.saveZeroPosition();
-        elevationMotor.saveZeroPosition();
-    }
+    Error err = setAzimuthElevation(config.azimuthalAngleOffset, config.elevationAngleBounds.min);
+    return err;
+}
+
+Error Mount::returnToStow()
+{
+    return this->setAzimuthElevation(this->getConfig().azimuthalAngleOffset, this->getConfig().elevationAngleBounds.max);
+    
+    gel::Error err;
+    float azSavedSpeed = azimuthalMotor.getSpeed();
+    float elSavedSpeed = elevationMotor.getSpeed();
+
+    azimuthalMotor.setSpeed(azSavedSpeed * 2.0);
+    elevationMotor.setSpeed(elSavedSpeed * 2.0);
+
+    if (!config.calibrateElevationNearMax)
+        err = returnToStart();
+    else
+        err = setAzimuthElevation(config.azimuthalAngleOffset, config.elevationAngleBounds.max);
+
+    azimuthalMotor.setSpeed(azSavedSpeed);
+    elevationMotor.setSpeed(elSavedSpeed);
     return err;
 }
 
@@ -176,14 +197,18 @@ float Mount::getElevationAngle()
     float azPosition = azimuthalMotor.getPosition();
     float elPosition = elevationMotor.getPosition();
 
-    float equivalentElPosition = azPosition * config.azelRatio + elPosition;
-    return normalizeAngle2PI(((equivalentElPosition / config.elevationRevolutionNumSteps) * GEL_PI_TIMES_2) + config.elevationAngleBounds.min);
+    float equivalentElPosition = azPosition * config.azelRatio;
+
+    equivalentElPosition += elPosition;
+    float angle = normalizeAngle2PI(((equivalentElPosition / config.elevationRevolutionNumSteps) * GEL_PI_TIMES_2) + config.elevationAngleBounds.min);
+
+    return angle;
 }
 
 float Mount::getAzimuthalAngle()
 {
     // Azimuthal angle is purely a function of the azimuthal motor's position
-    return convertAzimuthalPositionToAngle(azimuthalMotor.getPosition());
+    return convertAzimuthalPositionToAngle(azimuthalMotor.getPosition()) + config.azimuthalAngleOffset;
 }
 
 Vec3f Mount::getBoresight()
@@ -193,8 +218,7 @@ Vec3f Mount::getBoresight()
 
 Error Mount::setElevationAngle(float angle)
 {
-    if (angle < config.elevationAngleBounds.min || angle > config.elevationAngleBounds.max)
-        return Error::OutOfRange;
+    angle = clamp(angle, config.elevationAngleBounds.min, config.elevationAngleBounds.max);
 
     float deltaAngle = angle - getElevationAngle();
     float deltaElSteps = convertElevationDeltaAngleToDeltaPosition(deltaAngle);
@@ -256,9 +280,11 @@ void Mount::stepAzimuthalAndElevationSequential(float azSteps, float elSteps, bo
     }
 }
 
-// The elevation axis will be clamped if it would push the elevation gear out of bounds
 Error Mount::stepAzimuthalAndElevation(float azSteps, float elSteps, bool simultaneous)
 {
+    if (!this->calibrated)
+        return Error::NotInitialized;
+    
     azimuthalMotor.setCurrentMultiplier(MOVING_CURRENT);
     elevationMotor.setCurrentMultiplier(MOVING_CURRENT);
 
@@ -292,13 +318,13 @@ float Mount::getNewAzimuthalPositionFromAngle(float angle)
     return newAzPosition;
 }
 
-Error Mount::setAzimuthElevation(float azimuthalInRadians, float elevationInRadians)
+Error Mount::setAzimuthElevation(float azAngle, float elAngle)
 {
-    if (elevationInRadians < config.elevationAngleBounds.min || elevationInRadians > config.elevationAngleBounds.max)
-        return Error::OutOfRange;
+    azAngle -= config.azimuthalAngleOffset;
+    elAngle = clamp(elAngle, config.elevationAngleBounds.min, config.elevationAngleBounds.max);
     
-    float deltaElAngle = elevationInRadians - getElevationAngle();
-    float deltaAzSteps = getNewAzimuthalPositionFromAngle(azimuthalInRadians) - azimuthalMotor.getPosition();
+    float deltaElAngle = elAngle - getElevationAngle();
+    float deltaAzSteps = getNewAzimuthalPositionFromAngle(azAngle) - azimuthalMotor.getPosition();
     float deltaElSteps = -deltaAzSteps * config.azelRatio + convertElevationDeltaAngleToDeltaPosition(deltaElAngle);
 
     return stepAzimuthalAndElevation(deltaAzSteps, deltaElSteps);
@@ -326,13 +352,11 @@ Error Mount::setBoresight(Vec3f& boresight)
 
 Error Mount::setAzimuthalAngle(float angle)
 {
-    // If az rotates counter clockwise, el must compensate by rotating backwards
-    // If az rotates clockwise, el must compensate by rotating forwards
-    // We must decided whether to rotate az or el first:
-    // - If el is closer to zero than end, do el first if it must go forwards, otherwise do az first
-    // - If el is closer to end than zero, do el first if it must go backwards, otherwise do az first
+    angle -= config.azimuthalAngleOffset;
+    
     float deltaAzSteps = getNewAzimuthalPositionFromAngle(angle) - azimuthalMotor.getPosition();
     float deltaElSteps = -deltaAzSteps * config.azelRatio;
+
     return stepAzimuthalAndElevation(deltaAzSteps, deltaElSteps);
 }
 

@@ -1,23 +1,24 @@
 #include "gel/SpaceTime.h"
+// #include "gel/Core.h"
+#include "gel/WGS84.h"
+#include <TimeLib.h>
 
-#include <gel/WGS84.h>
-#include <time.h>
+#include <Arduino.h>
 
 namespace gel
 {
 
 uint64_t TimeInfo::getSecondsSinceEpoch()
 {
-    struct tm time_info;
+    tmElements_t timeEl;
+    timeEl.Second = this->sec;
+    timeEl.Minute = this->min;
+    timeEl.Hour = this->hour;
+    timeEl.Day = this->day;
+    timeEl.Month = this->mon;
+    timeEl.Year = this->year - 1970;
 
-    time_info.tm_sec = this->sec;
-    time_info.tm_min = this->min;
-    time_info.tm_hour = this->hour;
-    time_info.tm_mday = this->day;
-    time_info.tm_mon = this->mon;
-    time_info.tm_year = this->year;
-
-    return ::mktime(&time_info);
+    return makeTime(timeEl);
 }
 
 GeoInstant::GeoInstant()

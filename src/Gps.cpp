@@ -19,14 +19,14 @@ Error Gps::begin(GpsPins& pins)
 
 Error Gps::update()
 {
-    if (gpsSerial->available() > 0)
+    while (gpsSerial->available() > 0)
     {
         char c = gpsSerial->read();
         bool encodeResult = tinyGps.encode(c);
         if (!encodeResult)
             return Error::BadCommunication;
     }
-
+    
     return Error::None;
 }
 
@@ -79,7 +79,7 @@ expected<uint8_t, Error> Gps::getSecond()
 
 expected<uint8_t, Error> Gps::getMinute()
 {
-    if (!tinyGps.time.isUpdated())
+    if (!tinyGps.time.isValid())
         return make_unexpected<uint8_t>(Error::InvalidState);
 
     return tinyGps.time.minute();
@@ -87,7 +87,7 @@ expected<uint8_t, Error> Gps::getMinute()
 
 expected<uint8_t, Error> Gps::getHour()
 {
-    if (!tinyGps.time.isUpdated())
+    if (!tinyGps.time.isValid())
         return make_unexpected<uint8_t>(Error::InvalidState);
 
     return tinyGps.time.hour();
@@ -129,8 +129,9 @@ expected<uint64_t, Error> Gps::getCurrentSecondsSinceEpoch()
     timeInfo.day = getDay().value();
     timeInfo.mon = getMonth().value();
     timeInfo.year = getYear().value();
-
-    return timeInfo.getSecondsSinceEpoch() + tinyGps.time.age() * 1000;
+    
+    // return timeInfo.getSecondsSinceEpoch();
+    return timeInfo.getSecondsSinceEpoch() + tinyGps.time.age() / 1000;
 }
 
 expected<uint64_t, Error> Gps::getReceivedSecondsSinceEpoch()

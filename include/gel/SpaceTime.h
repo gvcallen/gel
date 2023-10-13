@@ -1,6 +1,5 @@
 #pragma once
 
-#include <time.h>
 #include <gel/Math.h>
 
 namespace gel {
