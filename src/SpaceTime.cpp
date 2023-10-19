@@ -23,7 +23,7 @@ uint64_t TimeInfo::getSecondsSinceEpoch()
 
 GeoInstant::GeoInstant()
 {
-    this->secondsSinceEpoch = ::time(NULL);
+    this->secondsSinceEpoch = 0;
     this->location.altitude = 0.0;
     this->location.lat = 0.0;
     this->location.lng = 0.0;

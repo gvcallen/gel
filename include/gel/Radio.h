@@ -32,9 +32,9 @@ enum class ModulationType
 struct LoRaConfig
 {
     uint8_t spreadingFactor = 8;
-    uint8_t codeRate = 3;                                   // 1, 2, 3 or 4
+    uint8_t codeRate = 2;                                   // 1, 2, 3 or 4
     float bandwidth = 500.0e3;
-    bool implicitHeader = false;
+    bool implicitHeader = true;
 };
 
 struct FSKConfig
@@ -54,13 +54,14 @@ union ModulationConfig
 
 struct RadioConfig
 {
-    float frequency = 434.0e6;
+    float frequency = 431.0e6;
     uint32_t syncWord = 0x12;
-    uint8_t outputPower = 10;                               // 2 to 17 dBm
+    uint8_t outputPower = 17;                               // 2 to 17 dBm
     uint8_t preambleLength = 8;                             // 6 to 65535
     optional<size_t> payloadLength = 255;                   // Must be specified for "fixed length" modes
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{LoRaConfig{}};
+    bool pcInt = false;
 };
 
 struct RadioPins

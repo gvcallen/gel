@@ -20,7 +20,7 @@ struct TrackingConfig
     uint32_t scanTimeout = 120;                             // The timeout, in seconds, before any scan function should stop and return
     uint32_t updateInterval = 100;                          // The update between locations when tracking, in milliseconds
 
-    float magneticNorthDeltaAzAngle = GEL_RADIANS(-120.0);  // The delta angle between the fixed (magnetic) north marking on the station, and the actual antenna pointing direction when at azimuthal start position.
+    float magneticNorthDeltaAzAngle = GEL_RADIANS(-74.0);  // The delta angle between the fixed (magnetic) north marking on the GS, and the actual antenna pointing direction when at azimuthal start position.
 };
 
 struct GroundStationPins
@@ -54,6 +54,7 @@ public:
 
     Radio& getRadio() { return radio; }
     Mount& getMount() { return mount; }
+    Link& getLink() { return link; }
 
     Error calibrate();
     Error returnToStart();

@@ -20,7 +20,7 @@ struct MountConfig
     float azelRatio = 1.0;                                  // The number of turns (per azimuthal turn) that the elevation gear would have to make to tilt the elevation axis the same amount as caused by the azimuthal gear. Relative to when ~reverseElevationDirection~ is false. 
     
     gel::Bounds1f elevationAngleBounds = {0.0, 2.0*PI};     // Elevation angle when el is at zero steps, and which el cannot go past
-    float azimuthalAngleOffset = 0.0;                       // The "offset angle" which defines the angle at the zero position of the azimuthal gear.
+    float azimuthalAngleOffset = 0.0;                       // The "offset angle" which defines the angle at the zero position of the azimuthal gear, relative to the original, non-offset zero position.
 
     bool slidingCoax = false;                               // Whether or not the mount's coax can "slide" to prevent twisting. If false, the mount will not rotate the azimuthal a delta of +/- ~maxNonSlidingRevolutions~ revolutions.
     float maxNonSlidingRevolutions = 2.5;

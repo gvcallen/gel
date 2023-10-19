@@ -74,6 +74,9 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
                               120, 
                               config.preambleLength);
 
+            radio.implicitHeader(config.payloadLength.value());
+            radio.setGain(6);
+
             #else
 
             err = radio.begin(config.frequency * 1.0e-6,
@@ -159,8 +162,8 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
 
     switch (instanceIdx)
     {
-        case 0: radio.setDio0Action(callback0); break;
-        case 1: radio.setDio0Action(callback1); break;
+        case 0: radio.setDio0Action(callback0, config.pcInt); break;
+        case 1: radio.setDio0Action(callback1, config.pcInt); break;
     }
 
     #else
@@ -203,6 +206,7 @@ Error Radio::startReceive()
 Error Radio::startTransmit(span<uint8_t> msg)
 {
     int err = 0;
+    return Error::None;
 
     #ifdef GEL_USE_LORASANDEEP
     radio.beginPacket(config.modConfig.lora.implicitHeader);
@@ -221,6 +225,7 @@ Error Radio::startTransmit(span<uint8_t> msg)
 
 Error Radio::startTransmit(String msg)
 {
+    return Error::None;
     span<uint8_t> msgSpan((uint8_t*)msg.c_str(), msg.length());
     return startTransmit(msgSpan);
 }

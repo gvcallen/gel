@@ -2362,6 +2362,7 @@ static const MagneticDeclinationCorrection magDecCorrections[] =
 
 static const size_t numMagDecCorrections = sizeof(magDecCorrections) / sizeof(MagneticDeclinationCorrection);
 
+// returns magnetic declination in radians
 expected<float, Error> getMagneticDeclination(float lat, float lon, uint16_t year)
 {
 	int8_t lati, loni;
@@ -2377,7 +2378,7 @@ expected<float, Error> getMagneticDeclination(float lat, float lon, uint16_t yea
 		    (magDecCorrections[i].lon == loni) && 
 		    (magDecCorrections[i].year == year_end))
 		{
-			return magDecCorrections[i].magdec;
+			return GEL_RADIANS(magDecCorrections[i].magdec);
 		}
 	}
 

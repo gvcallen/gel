@@ -2,7 +2,8 @@
 
 #include "gel/Link.h"
 
-namespace gel {
+namespace gel
+{
 
 Error Link::begin(Radio &radio, LinkConfig config)
 {
@@ -23,18 +24,16 @@ void Link::setState(State newState)
 {
     if (this->state == newState)
         return;
-    
+
     this->state = newState;
     if (newState == Telemetry)
     {
-        Serial.println("TM");
         telemetryStartTime = millis();
         numBitsInWindow = 0;
         bitsPending = false;
     }
     else if (newState == Telecommand)
     {
-        Serial.println("TC");
         telecommandStartTime = millis();
     }
 }
@@ -49,9 +48,9 @@ Error Link::update()
 
 Error Link::updateResponder()
 {
-    // Decide if "listening" must be toggled if we are not a master. Could also be implemented with interrupts -
+    // Decide if "listening" must be toggled. Could also be implemented with interrupts -
     // we choose to use times with an "update" function instead to give the user the choice.
-    
+
     uint32_t currentTime = millis();
     if ((listening && (currentTime - telecommandStartTime > config.listenWindow)))
     {
@@ -63,30 +62,30 @@ Error Link::updateResponder()
         setState(Telecommand);
         listening = true;
     }
-    
+
     // Update for the relevant sub-state
     switch (state)
     {
-        case Telemetry:
-            return updateResponderTelemetry();
-            
-        case Telecommand:
-            return updateResponderTelecommand();
+    case Telemetry:
+        return updateResponderTelemetry();
+
+    case Telecommand:
+        return updateResponderTelecommand();
     }
-    
-    return Error::None;   
+
+    return Error::None;
 }
 
 Error Link::updateResponderTelemetry()
 {
     auto radioState = radio->getState();
-    
+
     switch (radioState)
     {
     // Assumed to be still transmitting previous telemetry. Simply return
     case Radio::Transmitting:
         break;
-    
+
     // We should be transmitting, as we are in the telemetry state, so we start that state
     default:
         if (bitsPending)
@@ -95,9 +94,8 @@ Error Link::updateResponderTelemetry()
             numBitsInWindow += payloadLength * 8;
             lastTelemetryPacketTime = millis();
         }
-        
+
         telemetryCallback(sendPayload);
-        Serial.print("TX "); Serial.print(sendPayload.size()); Serial.println(" bytes");
         radio->startTransmit(sendPayload);
         bitsPending = true;
         break;
@@ -117,10 +115,10 @@ Error Link::updateResponderTelecommand()
     {
         radio->readData(receivePayload);
         telecommandCallback(receivePayload, sendPayload);
-        
+
         return radio->startTransmit(sendPayload);
     }
-    
+
     if (radioState != Radio::Transmitting)
         return radio->startReceive();
 
@@ -132,35 +130,37 @@ Error Link::updateController()
     // Update for the relevant sub-state
     switch (state)
     {
-        case Telemetry:
-            return updateControllerTelemetry();
-            
-        case Telecommand:
-            return updateControllerTelecommand();
+    case Telemetry:
+        return updateControllerTelemetry();
 
-        default:
-            return Error::InvalidState;
+    case Telecommand:
+        return updateControllerTelecommand();
+
+    default:
+        return Error::InvalidState;
     }
 }
 
 Error Link::updateControllerTelemetry()
 {
     if (radio->getState() == Radio::State::Idle)
+    {
+        Serial.println("startReceive");
         radio->startReceive();
-    
+    }
+
     if (radio->available())
     {
         radio->readData(this->receivePayload);
-
         if (this->telemetryCallback)
             return this->telemetryCallback(receivePayload);
     }
-    
+
     return Error::None;
 }
 
 Error Link::updateControllerTelecommand()
-{   
+{
     return Error::None;
 }
 
@@ -175,7 +175,7 @@ float Link::getDataRate()
     }
     else
     {
-        
+        return (float)numBitsInWindow / ((lastTelemetryPacketTime - telemetryStartTime) / 1000.0);
     }
 
     return 0.0;

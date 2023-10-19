@@ -23,9 +23,13 @@
   {
     "flags":
       [
+        "-ISource/LoRaLib/src",
+        "-ISource/LoRaLib/src/modules",
+        "-ISource/LoRaLib/src/protocols",
+        "-I LoRaLib/src/modules",
+        "-I LoRaLib/src/modules/protocols",
         "-ISource/include",
         "-ISource/src",
-        "-ISource/LoRaLib/src",
         "-I LoRaLib/src"
       ]
   },
@@ -38,8 +42,9 @@
     "SPI": "*",
     "Wire": "*",
     "EEPROM": "*",
-    "jgromes/RadioLib": "^6.2.0",
     "tomstewart89/BasicLinearAlgebra": "^4.1",
-    "paulstoffregen/Time": "^1.6.1"
+    "paulstoffregen/Time": "^1.6.1",
+    "LoRaLib": "*",
+    "SoftwareSerial": "*"
   }
 }

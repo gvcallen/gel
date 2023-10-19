@@ -107,8 +107,6 @@ Error Mount::returnToStart()
 
 Error Mount::returnToStow()
 {
-    return this->setAzimuthElevation(this->getConfig().azimuthalAngleOffset, this->getConfig().elevationAngleBounds.max);
-    
     gel::Error err;
     float azSavedSpeed = azimuthalMotor.getSpeed();
     float elSavedSpeed = elevationMotor.getSpeed();

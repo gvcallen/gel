@@ -48,8 +48,8 @@ inline std::array<double, 2> toCartesian(const std::array<double, 2> &WGS84Refer
     constexpr double EQUATOR_RADIUS{6378137.0};
     constexpr double FLATTENING{1.0 / 298.257223563};
     constexpr double SQUARED_ECCENTRICITY{2.0 * FLATTENING - FLATTENING * FLATTENING};
-    constexpr double SQUARE_ROOT_ONE_MINUS_ECCENTRICITY{0.996647189335};
-    constexpr double POLE_RADIUS{EQUATOR_RADIUS * SQUARE_ROOT_ONE_MINUS_ECCENTRICITY};
+    // constexpr double SQUARE_ROOT_ONE_MINUS_ECCENTRICITY{0.996647189335};
+    // constexpr double POLE_RADIUS{EQUATOR_RADIUS * SQUARE_ROOT_ONE_MINUS_ECCENTRICITY};
 
     constexpr double C00{1.0};
     constexpr double C02{0.25};

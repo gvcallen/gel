@@ -4,6 +4,8 @@
 
 #include <SoftwareSerial.h>
 
+#define LOOKUP_MAG_DEC 0
+
 namespace gel
 {
 
@@ -26,6 +28,8 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
         return err;
 
     unsigned long gpsStartTime = millis(), timeout = 5000;
+
+    #if (LOOKUP_MAG_DEC == 1)
     bool gotMagDec = false;
     while (!gotMagDec && millis() - gpsStartTime < timeout)
     {
@@ -37,13 +41,15 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
         return gel::Error::Timeout;
     
     float magDec = gps.getMagneticDeclination().value();
+    #else
+    float magDec = GEL_RADIANS(-26.0);
+    #endif
 
-    // We want the mount to point east when we set the azimuthal angle to zero.
+    // We want the mount to point east when the azimuthal angle is set to zero.
     // We therefore offset the 
     float deltaNorth = config.trackingConfig.magneticNorthDeltaAzAngle + magDec;
     float deltaEast = deltaNorth - GEL_RADIANS(90.0);
     config.mount.azimuthalAngleOffset = -deltaEast;
-    config.mount.azimuthalAngleOffset = 0.0;
 
     if (err = mount.begin(pins.mount, config.mount))
         return err;
@@ -69,8 +75,10 @@ Error GroundStation::update()
 
     if (err = gps.update())
         return err;
-    
-    return link.update();
+
+    return Error::None;
+
+    // return link.update();
 }
 
 Error GroundStation::updatePosition()
@@ -112,11 +120,8 @@ Error GroundStation::calibrate()
 {
     mount.calibrate();
     delay(1000);
-    mount.setAzimuthalAngle(0.0);
-    delay(1000);
-    mount.setAzimuthalAngle(GEL_RADIANS(-90.0));
-    // delay(1000);
-    // mount.setAzimuthElevation(mount.getConfig().azimuthalAngleOffset, mount.getConfig().elevationAngleBounds.max);
+    mount.setAzimuthalAngle(GEL_RADIANS(90.0));
+
     return Error::None;
 }
 
