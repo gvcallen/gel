@@ -76,7 +76,7 @@ private:
     float getNewAzimuthalPositionFromAngle(float angle);
 
 private:
-    static constexpr float HOLDING_CURRENT = 2.0/3.0, MOVING_CURRENT = 2.0/3.0; 
+    static constexpr float HOLDING_CURRENT = 3.0/3.0, MOVING_CURRENT = 3.0/3.0; 
 
 private:
     bool initialized = false, calibrated = false;

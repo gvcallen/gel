@@ -23,8 +23,8 @@ Error Gps::update()
     {
         char c = gpsSerial->read();
         bool encodeResult = tinyGps.encode(c);
-        if (!encodeResult)
-            return Error::BadCommunication;
+        // if (!encodeResult)
+            // return Error::BadCommunication;
     }
     
     return Error::None;

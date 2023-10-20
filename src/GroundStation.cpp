@@ -120,7 +120,19 @@ Error GroundStation::calibrate()
 {
     mount.calibrate();
     delay(1000);
-    mount.setAzimuthalAngle(GEL_RADIANS(90.0));
+    // mount.setAzimuthalAngle(GEL_RADIANS(90.0));
+
+    // while (1)
+    // {
+        // mount.setAzimuthalAngle(GEL_RADIANS(60.0));
+        // delay(2000);
+        // mount.setAzimuthalAngle(GEL_RADIANS(30.0));
+        // delay(2000);
+        // mount.setAzimuthalAngle(GEL_RADIANS(60.0));
+        // delay(2000);
+        // mount.setAzimuthalAngle(GEL_RADIANS(90.0));
+        // delay(2000);
+    // }
 
     return Error::None;
 }

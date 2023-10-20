@@ -57,7 +57,7 @@ Error Link::updateResponder()
         setState(Telemetry);
         listening = false;
     }
-    else if (!listening && (currentTime - telemetryStartTime) > config.listenInterval)
+    else if (!listening && config.listen && (currentTime - telemetryStartTime) > config.listenInterval)
     {
         setState(Telecommand);
         listening = true;

@@ -61,7 +61,6 @@ struct RadioConfig
     optional<size_t> payloadLength = 255;                   // Must be specified for "fixed length" modes
     ModulationType modType = ModulationType::LoRa;
     ModulationConfig modConfig{LoRaConfig{}};
-    bool pcInt = false;
 };
 
 struct RadioPins

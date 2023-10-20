@@ -318,6 +318,8 @@ float Mount::getNewAzimuthalPositionFromAngle(float angle)
 
 Error Mount::setAzimuthElevation(float azAngle, float elAngle)
 {
+    DEBUG_VARIABLE(GEL_DEGREES(elAngle));
+    
     azAngle -= config.azimuthalAngleOffset;
     elAngle = clamp(elAngle, config.elevationAngleBounds.min, config.elevationAngleBounds.max);
     

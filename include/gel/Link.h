@@ -10,6 +10,7 @@ namespace gel {
 struct LinkConfig
 {
     bool controller = false;
+    bool listen = true;
     uint32_t listenInterval = 4500;
     uint32_t listenWindow = 500;
 };

@@ -162,8 +162,8 @@ Error Radio::begin(RadioPins pins, RadioConfig config)
 
     switch (instanceIdx)
     {
-        case 0: radio.setDio0Action(callback0, config.pcInt); break;
-        case 1: radio.setDio0Action(callback1, config.pcInt); break;
+        case 0: radio.setDio0Action(callback0); break;
+        case 1: radio.setDio0Action(callback1); break;
     }
 
     #else
