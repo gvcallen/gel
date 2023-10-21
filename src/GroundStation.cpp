@@ -9,24 +9,14 @@
 namespace gel
 {
 
-Error telemetryReceived(gel::span<uint8_t> message)
-{
-    Serial.println("Telemetry received! Message = '");
-    Serial.print((const char*)message.data());
-    Serial.println("' ");
-
-    return Error::None;
-}
-
 Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
 {
     Error err;
 
-    this->trackingConfig = config.trackingConfig;
+    this->tracking = config.tracking;
 
     if (err = gps.begin(pins.gps))
         return err;
-
 
     #if (LOOKUP_MAG_DEC == 1)
     unsigned long gpsStartTime = millis(), timeout = 5000;
@@ -47,7 +37,7 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
 
     // We want the mount to point east when the azimuthal angle is set to zero.
     // We therefore offset the 
-    float deltaNorth = config.trackingConfig.magneticNorthDeltaAzAngle + magDec;
+    float deltaNorth = tracking.magneticNorthDeltaAzAngle + magDec;
     float deltaEast = deltaNorth - GEL_RADIANS(90.0);
     config.mount.azimuthalAngleOffset = -deltaEast;
 
@@ -60,35 +50,52 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
     if (err = link.begin(radio, config.link))
         return err;
 
-    link.setTelemetryCallback(telemetryReceived);
     lastPositionUpdate = millis();
 
     return Error::None;
 }
 
-Error GroundStation::update()
+vector<Error, 3> GroundStation::update()
 {   
-    gel::Error err;
+    vector<Error, 3> errors;
+    Error err;
     
-    if (err = updatePosition())
-        return err;
-
     if (err = gps.update())
-        return err;
+    {
+        if (!err.message)
+            err.message = "Error updating GPS";
+        errors.push_back(err);
+    }
 
-    return Error::None;
+    if (err = link.update())
+    {
+        if (!err.message)
+            err.message = "Error updating communication link";
+        errors.push_back(err);
+    }
 
-    // return link.update();
+    if (err = updatePosition())
+    {
+        if (!err.message)
+            err.message = "Error updating position";
+        errors.push_back(err);
+    }
+
+    return errors;
 }
 
 Error GroundStation::updatePosition()
 {
-    if ((millis() - lastPositionUpdate) < trackingConfig.updateInterval)
+    if ((millis() - lastPositionUpdate) < tracking.updateInterval)
         return Error::None;
 
     lastPositionUpdate = millis();
     
-    if (trackingFlags & TrackingFlags::EstimatedLocation)
+    bool knownLocationUsed = false;
+    if (trackingFlags & TrackingFlags::KnownLocation)
+        return updatePositionKnownLocation(knownLocationUsed);
+    
+    if (!knownLocationUsed && trackingFlags & TrackingFlags::EstimatedLocation)
         return updatePositionEstimatedLocation();
     
     return Error::None;
@@ -116,23 +123,31 @@ Error GroundStation::updatePositionEstimatedLocation()
     return Error::None;
 }
 
+Error GroundStation::updatePositionKnownLocation(bool& knownLocationUsed)
+{
+    static gel::RunEvery run(1000);
+    
+    uint64_t positionAge = getCurrentSecondsSinceEpoch() - knownLocation.secondsSinceEpoch;
+    if (positionAge > tracking.knownLocationTrustTimeout)
+    {
+        if (run)
+            Serial.println("Position too old - discarding");
+        knownLocationUsed = false;
+        return Error::None;
+    }
+
+    if (run)
+        Serial.println("Using position with age " + String(positionAge));
+
+    knownLocationUsed = true;
+    return pointAt(knownLocation.location, true);
+}
+
 Error GroundStation::calibrate()
 {
     mount.calibrate();
-    delay(1000);
-    // mount.setAzimuthalAngle(GEL_RADIANS(90.0));
-
-    // while (1)
-    // {
-        // mount.setAzimuthalAngle(GEL_RADIANS(60.0));
-        // delay(2000);
-        // mount.setAzimuthalAngle(GEL_RADIANS(30.0));
-        // delay(2000);
-        // mount.setAzimuthalAngle(GEL_RADIANS(60.0));
-        // delay(2000);
-        // mount.setAzimuthalAngle(GEL_RADIANS(90.0));
-        // delay(2000);
-    // }
+    delay(200);
+    mount.setAzimuthalAngle(GEL_RADIANS(90.0)); // point north
 
     return Error::None;
 }
@@ -149,28 +164,44 @@ Error GroundStation::returnToStow()
     return mount.returnToStow();
 }
 
-Error GroundStation::pointAt(const GeoLocation& location)
+Error GroundStation::pointAt(const GeoLocation& location, bool lowPass)
 {
-    return pointAtCartesian(location.toCartesian(this->projectionOrigin));
+    // Serial.print("Pointing at: ");
+    // Serial.print("Lat = ");
+    // Serial.print(location.lat, 5);
+    // Serial.print(", Lng = ");
+    // Serial.print(location.lng, 5);
+    // Serial.print(", Alt = ");
+    // Serial.println(location.altitude, 2);
+    
+    // Serial.print("Point from: ");
+    // Serial.print("Lat = ");
+    // Serial.print(gps.getLatitude().value(), 5);
+    // Serial.print(", Lng = ");
+    // Serial.print(gps.getLongitude().value(), 5);
+    // Serial.print(", Alt = ");
+    // Serial.println(gps.getAltitude().value(), 2);
+    
+    return pointAtCartesian(location.toCartesian(tracking.mapProjectionOrigin), lowPass);
 }
 
 // Weight of zero is all the way to location1
 Error GroundStation::pointBetween(const GeoLocation& location1, const GeoLocation& location2, float weight)
 {   
-    auto pt1 = location1.toCartesian(this->projectionOrigin);
-    auto pt2 = location2.toCartesian(this->projectionOrigin);
+    auto pt1 = location1.toCartesian(tracking.mapProjectionOrigin);
+    auto pt2 = location2.toCartesian(tracking.mapProjectionOrigin);
     auto ptBetween = pt1 * (1.0 - weight) + pt2 * (weight);
 
     return pointAtCartesian(ptBetween);
 }
 
-Error GroundStation::pointAtCartesian(const Vec3f& pt)
+Error GroundStation::pointAtCartesian(const Vec3f& pt, bool lowPass)
 {
     auto geoLocation = gps.getGeoLocation();
     if (!geoLocation.has_value())
         return Error::Internal;
     
-    auto ptGs = geoLocation.value().toCartesian(this->projectionOrigin);
+    auto ptGs = geoLocation.value().toCartesian(tracking.mapProjectionOrigin);
     gel::Vec3f delta = pt - ptGs;
     auto boresight = normalize(delta);
 
@@ -228,21 +259,29 @@ Error GroundStation::scanConical(Vec3f estimatedDirection, float conicalAngle)
     return Error::None;
 }
 
-Error GroundStation::scanBF()
+Error GroundStation::scanBruteForce()
 {
-    float elevationStep = trackingConfig.estimatedBeamwidth / trackingConfig.numBeamwidthScanSegments;
+    Serial.println("Scanning " + String(tracking.numBeamwidthScanSegments) + " segments using beamwidth = " + String(GEL_DEGREES(tracking.estimatedBeamwidth)));
+    float elevationStep = tracking.estimatedBeamwidth / tracking.numBeamwidthScanSegments;
     float elevationAngle = mount.getConfig().elevationAngleBounds.min;
 
-    mount.setAzimuthElevation(0.0, elevationAngle);
-
     float bestRssi = radio.getRssi(false);
-    float bestAzimuth = 0.0;
     float bestElevation = elevationAngle;
+    float bestAzimuth;
+    if (mount.getConfig().unconstrainedRotation)
+        bestAzimuth = mount.getConfig().maxConstrainedRotations * GEL_RADIANS(360); // start azimuth at the edge of constrained limit
+    else
+        bestAzimuth = GEL_RADIANS(90.0); // start azimuth at north
     
+    mount.setAzimuthElevation(bestAzimuth, bestElevation);
+    Serial.println("Starting at az = " + String(GEL_DEGREES(bestAzimuth)) + " and el = " + String(GEL_DEGREES(bestElevation)));
+    delay(1000);
     bool scanAzBackwards = false;
-    while (elevationAngle < GEL_RADIANS(90.0))
+    
+    while (elevationAngle <= GEL_RADIANS(90.0))
     {
         float testRssi, testAzimuth;
+        Serial.println("Scanning segment el = " + String(GEL_DEGREES(elevationAngle)));
         scanSegment(testRssi, testAzimuth, elevationAngle, scanAzBackwards);
 
         if (testRssi > bestRssi)
@@ -257,7 +296,6 @@ Error GroundStation::scanBF()
     }
     
     mount.setAzimuthElevation(bestAzimuth, bestElevation);
-
     return Error::None;
 }
 
@@ -265,7 +303,7 @@ Error GroundStation::scanSegment(float& bestRssi, float& bestAzimuth, float elev
 {
     bestRssi = radio.getRssi(false);
     bestAzimuth = mount.getAzimuthalAngle();
-    uint32_t numSamples = trackingConfig.numAzimuthScanSamples;
+    uint32_t numSamples = tracking.numAzimuthScanSamples;
     
     float azStep = GEL_PI_TIMES_2 / numSamples;
     if (scanAzBackwards)
@@ -276,17 +314,17 @@ Error GroundStation::scanSegment(float& bestRssi, float& bestAzimuth, float elev
     float testRssi, testAzimuth;
     for (uint32_t i = 0; i < numSamples; i++)
     {
-        testAzimuth += azStep;
         mount.setAzimuthalAngle(testAzimuth);
         testRssi = radio.getRssi();
 
-        Serial.print("Rssi = "); Serial.print(testRssi); Serial.println(" dB");
+        Serial.print("Rssi = "); Serial.print(testRssi); Serial.println(" dB at az = " + String(GEL_DEGREES(testAzimuth)));
         
         if (testRssi > bestRssi)
         {
             bestRssi = testRssi;
             bestAzimuth = testAzimuth;
         }
+        testAzimuth += azStep;
     }
 
     return Error::None;

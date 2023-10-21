@@ -22,9 +22,7 @@ Error Gps::update()
     while (gpsSerial->available() > 0)
     {
         char c = gpsSerial->read();
-        bool encodeResult = tinyGps.encode(c);
-        // if (!encodeResult)
-            // return Error::BadCommunication;
+        tinyGps.encode(c);
     }
     
     return Error::None;
@@ -147,12 +145,12 @@ expected<uint64_t, Error> Gps::getReceivedSecondsSinceEpoch()
     timeInfo.mon = getMonth().value();
     timeInfo.year = getYear().value();
 
-    return timeInfo.getSecondsSinceEpoch();    
+    return timeInfo.getSecondsSinceEpoch();
 }
 
 expected<GeoLocation, Error> Gps::getGeoLocation()
 {
-    if (!tinyGps.date.isValid())
+    if (!tinyGps.location.isValid())
         return make_unexpected<GeoLocation>(Error::InvalidState);
         
     GeoLocation location;
@@ -163,9 +161,14 @@ expected<GeoLocation, Error> Gps::getGeoLocation()
     return location;
 }
 
+uint64_t Gps::getGeoLocationAge()
+{
+    return tinyGps.location.age() / 1000;
+}
+
 expected<GeoInstant, Error> Gps::getGeoInstant()
 {
-    if (!tinyGps.date.isValid() || !tinyGps.time.isValid())
+    if (!tinyGps.location.isValid() || !tinyGps.time.isValid())
         return make_unexpected<GeoInstant>(Error::InvalidState);
         
     GeoInstant instant(getLatitude().value(),

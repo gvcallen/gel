@@ -10,6 +10,7 @@
 #include <etl/span.h>
 #include <etl/expected.h>
 #include <etl/vector.h>
+#include <etl/array.h>
 
 // #include "gel/Flagset.h"
 

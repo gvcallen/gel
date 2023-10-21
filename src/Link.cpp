@@ -27,14 +27,9 @@ void Link::setState(State newState)
 
     this->state = newState;
     if (newState == Telemetry)
-    {
         telemetryStartTime = millis();
-        numBitsInWindow = 0;
-    }
     else if (newState == Telecommand)
-    {
         telecommandStartTime = millis();
-    }
 }
 
 Error Link::update()
@@ -50,8 +45,6 @@ Error Link::updateResponder()
     // Decide if "listening" must be toggled. Could also be implemented with interrupts -
     // we choose to use times with an "update" function instead to give the user the choice.
 
-    // Serial.print("#1 "); Serial.println(millis());
-
     uint32_t currentTime = millis();
     if ((listening && (currentTime - telecommandStartTime > config.listenWindow)))
     {
@@ -62,7 +55,6 @@ Error Link::updateResponder()
     {
         setState(Telecommand);
         listening = true;
-        Serial.println("Listening...");
     }
 
     // Update for the relevant sub-state
@@ -74,7 +66,6 @@ Error Link::updateResponder()
     case Telecommand:
         return updateResponderTelecommand();
     }
-
 
     return Error::None;
 }
@@ -101,7 +92,6 @@ Error Link::updateResponderTelemetry()
         else
         {
             lastTelemetryPacketTime = millis();
-            numBitsInWindow += payloadLength * 8;
             if (config.packetSleep > 0)
             {
                 sleeping = true;
@@ -156,17 +146,20 @@ Error Link::updateController()
 
 Error Link::updateControllerTelemetry()
 {
-    if (radio->getState() == Radio::State::Idle)
-    {
-        Serial.println("startReceive");
-        radio->startReceive();
-    }
-
     if (radio->available())
     {
-        radio->readData(this->receivePayload);
+        Serial.println("Available! Radio state = " + String(radio->getState()));
+        if (gel::Error err = radio->readData(this->receivePayload))
+            return err;
+        
         if (this->telemetryCallback)
             return this->telemetryCallback(receivePayload);
+    }
+
+    if (radio->getState() == Radio::State::Idle)
+    {
+        Serial.println("Starting to receive");
+        radio->startReceive();
     }
 
     return Error::None;
@@ -179,18 +172,6 @@ Error Link::updateControllerTelecommand()
 
 float Link::getDataRate()
 {
-    if (config.controller)
-    {
-        if (lastTelemetryPacketTime > telemetryStartTime)
-            return (float)numBitsInWindow / ((lastTelemetryPacketTime - telemetryStartTime) / 1000.0);
-        else
-            return 0.0;
-    }
-    else
-    {
-        return (float)numBitsInWindow / ((lastTelemetryPacketTime - telemetryStartTime) / 1000.0);
-    }
-
     return 0.0;
 }
 

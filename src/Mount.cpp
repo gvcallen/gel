@@ -305,11 +305,11 @@ float Mount::getNewAzimuthalPositionFromAngle(float angle)
 {
     // If our coax can slide, we simply move to the closest az position. If not, we ensure az stays within confinements
     float newAzPosition = convertAzimuthalAngleToPosition(angle, true);
-    if (!config.slidingCoax)
+    if (!config.unconstrainedRotation)
     {
-        if (newAzPosition > (config.maxNonSlidingRevolutions * config.azimuthalRevolutionNumSteps))
+        if (newAzPosition > (config.maxConstrainedRotations * config.azimuthalRevolutionNumSteps))
             newAzPosition = convertAzimuthalAngleToPosition(angle, false, true);
-        else if (newAzPosition < (-config.maxNonSlidingRevolutions * config.azimuthalRevolutionNumSteps))
+        else if (newAzPosition < (-config.maxConstrainedRotations * config.azimuthalRevolutionNumSteps))
             newAzPosition = convertAzimuthalAngleToPosition(angle, false, false);
     }
 
@@ -318,8 +318,6 @@ float Mount::getNewAzimuthalPositionFromAngle(float angle)
 
 Error Mount::setAzimuthElevation(float azAngle, float elAngle)
 {
-    DEBUG_VARIABLE(GEL_DEGREES(elAngle));
-    
     azAngle -= config.azimuthalAngleOffset;
     elAngle = clamp(elAngle, config.elevationAngleBounds.min, config.elevationAngleBounds.max);
     
@@ -342,12 +340,22 @@ Error Mount::setConical(Vec3f& boresight, float radiusAngle, float scanAngle)
     return setBoresight(target);
 }
 
-Error Mount::setBoresight(Vec3f& boresight)
+Error Mount::setBoresight(Vec3f& boresight, bool lowPass)
 {
-    float az, el;
-    cartesianToAzimuthElevation(&az, &el, nullptr, boresight);
+    float newAz, newEl;
+    cartesianToAzimuthElevation(&newAz, &newEl, nullptr, boresight);
 
-    return setAzimuthElevation(az, el);
+    if (lowPass)
+    {
+        auto currentAz = getAzimuthalAngle();
+        auto currentEl = getElevationAngle();
+
+        if ((fabs(currentAz - newAz) < config.lowPassAngle) && 
+             fabs(currentEl - newEl) < config.lowPassAngle)
+            return Error::None;
+    }
+
+    return setAzimuthElevation(newAz, newEl);
 }
 
 Error Mount::setAzimuthalAngle(float angle)

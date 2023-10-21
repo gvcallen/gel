@@ -231,13 +231,13 @@ void Radio::callback()
 {
     if (currentState == Receiving)
         dataReceived = true;
-    else
-        setState(Idle);
+    
+    setState(Idle);
 };
 
 size_t Radio::available()
 {
-    if (!(currentState == Receiving) || !(dataReceived == true))
+    if (!(dataReceived == true))
         return 0;
 
     return radio.getPacketLength();

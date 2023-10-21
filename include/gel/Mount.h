@@ -22,12 +22,13 @@ struct MountConfig
     gel::Bounds1f elevationAngleBounds = {0.0, 2.0*PI};     // Elevation angle when el is at zero steps, and which el cannot go past
     float azimuthalAngleOffset = 0.0;                       // The "offset angle" which defines the angle at the zero position of the azimuthal gear, relative to the original, non-offset zero position.
 
-    bool slidingCoax = false;                               // Whether or not the mount's coax can "slide" to prevent twisting. If false, the mount will not rotate the azimuthal a delta of +/- ~maxNonSlidingRevolutions~ revolutions.
-    float maxNonSlidingRevolutions = 2.5;
+    bool unconstrainedRotation = false;                     // Whether or not the mount is constrained within a certain amount for its azimuthal rotation. If false, the mount will not rotate the azimuthal a delta of +/- ~maxConstrainedRotations~ revolutions.
+    float maxConstrainedRotations = 0.5;
     
     bool reverseAzimuthalDirection = false;                 // Specifies that "forward" should be the opposite direction for the azimuthal motor.
     bool reverseElevationDirection = false;                 // Specifies that "forward" should be the opposite direction for the elevation motor. Not that "min" and "max" angles are with respect to this newly specified direction.
     bool calibrateElevationNearMax = false;                 // Used for the "elevation controlled" calibration method. If true, it is assumed that the mount is resting at the "max" elevation angle when calibration starts.
+    float lowPassAngle = 5.0;                               // Specifies the delta angle for which the mount doesn't move (only used when setting the boresight)
 };
 
 // NB - entire class is in radians
@@ -47,7 +48,7 @@ public:
     Error setElevationAngle(float angle);
     Error setAzimuthalAngle(float angle);
     Error setAzimuthElevation(float azimuthal, float elevation);
-    Error setBoresight(Vec3f& boresight);
+    Error setBoresight(Vec3f& boresight, bool lowPass = false);
     Error setConical(Vec3f& boresight, float radiusAngle, float scanAngle);
 
     float getElevationAngle();

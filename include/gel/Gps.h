@@ -37,6 +37,7 @@ public:
     expected<uint64_t, Error> getReceivedSecondsSinceEpoch();
     expected<GeoInstant, Error> getGeoInstant();
     expected<GeoLocation, Error> getGeoLocation();
+    uint64_t getGeoLocationAge();
 
 private:
     TinyGPSPlus tinyGps{};

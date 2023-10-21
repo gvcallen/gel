@@ -10,7 +10,7 @@ namespace gel {
 struct LinkConfig
 {
     bool controller = false;
-    uint32_t packetSleep = 25;
+    uint32_t packetSleep = 1000;
     uint32_t listenInterval = 4500;
     uint32_t listenWindow = 0;
 };
@@ -73,7 +73,6 @@ private:
     uint32_t telecommandStartTime = 0;
     uint32_t telemetryStartTime = 0;
     unsigned long lastTelemetryPacketTime = 0;
-    uint32_t numBitsInWindow;
     bool listening = false;
     bool sleeping = false;
 
