@@ -27,9 +27,9 @@ Error GroundStation::begin(GroundStationConfig config, GroundStationPins pins)
     if (err = gps.begin(pins.gps))
         return err;
 
-    unsigned long gpsStartTime = millis(), timeout = 5000;
 
     #if (LOOKUP_MAG_DEC == 1)
+    unsigned long gpsStartTime = millis(), timeout = 5000;
     bool gotMagDec = false;
     while (!gotMagDec && millis() - gpsStartTime < timeout)
     {

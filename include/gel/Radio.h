@@ -2,10 +2,7 @@
 
 #include <Arduino.h>
 
-#if defined(GEL_USE_LORASANDEEP)
-#include <LoRa.h>
-
-#elif defined(GEL_USE_LORALIB)
+#if defined(GEL_USE_LORALIB)
 
 #include <LoRaLib.h>
 
@@ -54,7 +51,7 @@ union ModulationConfig
 
 struct RadioConfig
 {
-    float frequency = 431.0e6;
+    float frequency = 427.0e6;
     uint32_t syncWord = 0x12;
     uint8_t outputPower = 17;                               // 2 to 17 dBm
     uint8_t preambleLength = 8;                             // 6 to 65535
@@ -83,7 +80,6 @@ public:
         Idle = 0,           // Note that if the device is sleep, it is in this state, however it could also just be neither receiving not transmitting
         Transmitting,
         Receiving,
-        Scanning,
     };
 
 public:
@@ -95,7 +91,6 @@ public:
     Error startTransmit(span<uint8_t> msg);
     Error startTransmit(String msg);
     Error startReceive();
-    Error startScan();
 
     // Change to idle modes
     Error sleep();
@@ -118,6 +113,7 @@ public:
     Error setPreambleLength(size_t length);
 
     RadioConfig& getConfig() {return config; }
+    SX1278& getImpl() { return radio; }
 
 private:
     static void callback0(void) { Radio::get(0)->callback(); }
@@ -148,11 +144,7 @@ private:
     volatile State currentState = Idle;
     State prevState = Idle;
 
-    #ifdef GEL_USE_LORASANDEEP
-    LoRaClass& radio = LoRa;
-    #else
     SX1278 radio {nullptr};
-    #endif
 };
 
 } // namespace gel

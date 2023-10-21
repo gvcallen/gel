@@ -30,7 +30,6 @@ void Link::setState(State newState)
     {
         telemetryStartTime = millis();
         numBitsInWindow = 0;
-        bitsPending = false;
     }
     else if (newState == Telecommand)
     {
@@ -51,16 +50,19 @@ Error Link::updateResponder()
     // Decide if "listening" must be toggled. Could also be implemented with interrupts -
     // we choose to use times with an "update" function instead to give the user the choice.
 
+    // Serial.print("#1 "); Serial.println(millis());
+
     uint32_t currentTime = millis();
     if ((listening && (currentTime - telecommandStartTime > config.listenWindow)))
     {
         setState(Telemetry);
         listening = false;
     }
-    else if (!listening && config.listen && (currentTime - telemetryStartTime) > config.listenInterval)
+    else if (!listening && (config.listenWindow > 0) && (currentTime - telemetryStartTime) > config.listenInterval)
     {
         setState(Telecommand);
         listening = true;
+        Serial.println("Listening...");
     }
 
     // Update for the relevant sub-state
@@ -73,6 +75,7 @@ Error Link::updateResponder()
         return updateResponderTelecommand();
     }
 
+
     return Error::None;
 }
 
@@ -82,22 +85,32 @@ Error Link::updateResponderTelemetry()
 
     switch (radioState)
     {
-    // Assumed to be still transmitting previous telemetry. Simply return
+    // We are busy transmitting the previous telemetry packet
     case Radio::Transmitting:
         break;
 
-    // We should be transmitting, as we are in the telemetry state, so we start that state
+    // We have just finished transmitting the previous packet - send the next one
     default:
-        if (bitsPending)
+        if (sleeping)
         {
-            bitsPending = false;
-            numBitsInWindow += payloadLength * 8;
+            if (millis() - lastTelemetryPacketTime < config.packetSleep)
+                return Error::None; // still sleeping
+            else
+                sleeping = false; // finished sleeping
+        }
+        else
+        {
             lastTelemetryPacketTime = millis();
+            numBitsInWindow += payloadLength * 8;
+            if (config.packetSleep > 0)
+            {
+                sleeping = true;
+                return Error::None;
+            }
         }
 
         telemetryCallback(sendPayload);
         radio->startTransmit(sendPayload);
-        bitsPending = true;
         break;
     }
 

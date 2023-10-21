@@ -10,9 +10,9 @@ namespace gel {
 struct LinkConfig
 {
     bool controller = false;
-    bool listen = true;
+    uint32_t packetSleep = 25;
     uint32_t listenInterval = 4500;
-    uint32_t listenWindow = 500;
+    uint32_t listenWindow = 0;
 };
 
 using TelecommandCallback = Error(*)(span<uint8_t>, span<uint8_t>);     // Parameters: command, response. Will be called for responder and must be populated with response.
@@ -72,15 +72,15 @@ private:
     uint32_t prevRecieveTime = 0;
     uint32_t telecommandStartTime = 0;
     uint32_t telemetryStartTime = 0;
+    unsigned long lastTelemetryPacketTime = 0;
+    uint32_t numBitsInWindow;
     bool listening = false;
+    bool sleeping = false;
 
     vector<uint8_t, LINK_MAX_PAYLOAD> sendPayload;
     vector<uint8_t, LINK_MAX_PAYLOAD> receivePayload;
     uint32_t payloadLength;
 
-    unsigned long lastTelemetryPacketTime;
-    uint32_t numBitsInWindow;
-    bool bitsPending = true;
 };
 
 } // namespace gel
