@@ -166,22 +166,6 @@ Error GroundStation::returnToStow()
 
 Error GroundStation::pointAt(const GeoLocation& location, bool lowPass)
 {
-    // Serial.print("Pointing at: ");
-    // Serial.print("Lat = ");
-    // Serial.print(location.lat, 5);
-    // Serial.print(", Lng = ");
-    // Serial.print(location.lng, 5);
-    // Serial.print(", Alt = ");
-    // Serial.println(location.altitude, 2);
-    
-    // Serial.print("Point from: ");
-    // Serial.print("Lat = ");
-    // Serial.print(gps.getLatitude().value(), 5);
-    // Serial.print(", Lng = ");
-    // Serial.print(gps.getLongitude().value(), 5);
-    // Serial.print(", Alt = ");
-    // Serial.println(gps.getAltitude().value(), 2);
-    
     return pointAtCartesian(location.toCartesian(tracking.mapProjectionOrigin), lowPass);
 }
 

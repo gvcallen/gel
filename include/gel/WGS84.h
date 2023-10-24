@@ -29,7 +29,7 @@
 #include <array>
 #include <limits>
 
-namespace wgs84 {
+namespace    {
 
 /**
  * @param WGS84Reference WGS84 position to be used as reference.
