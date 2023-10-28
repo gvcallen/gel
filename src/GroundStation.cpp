@@ -67,12 +67,12 @@ vector<Error, 3> GroundStation::update()
         errors.push_back(err);
     }
 
-    if (err = link.update())
-    {
-        if (!err.message)
-            err.message = "Error updating communication link";
-        errors.push_back(err);
-    }
+    // if (err = link.update())
+    // {
+        // if (!err.message)
+            // err.message = "Error updating communication link";
+        // errors.push_back(err);
+    // }
 
     if (err = updatePosition())
     {
